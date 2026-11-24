@@ -74,6 +74,14 @@ describe('install channel', () => {
     expect(await getChannel()).toBe('sideload')
   })
 
+  it('lets the personal build update itself without loading the native scanner', async () => {
+    h.answer = { channel: 'personal' }
+    const { getChannel, selfUpdates, nativeScanner } = await import('./channel.js')
+    expect(await getChannel()).toBe('personal')
+    expect(await selfUpdates()).toBe(true)
+    expect(await nativeScanner()).toBe(false)
+  })
+
   it('the iPhone app is the App Store\'s', async () => {
     h.platform = 'ios'
     const { getChannel, selfUpdates } = await import('./channel.js')
@@ -122,10 +130,12 @@ describe('install channel', () => {
     expect(existsSync(new URL('WatchBridgePlugin.java', main))).toBe(false)
     expect(existsSync(new URL('WatchListenerService.java', main))).toBe(false)
     const fd = new URL('src/fdroid/java/ch/duartesantos/opengym/', app)
-    for (const f of ['FlavorPlugins.java', 'AnimationPacksPlugin.java', 'WatchBridgePlugin.java']) {
+    for (const f of ['FlavorPlugins.java', 'AnimationPacksPlugin.java']) {
       const src = readFileSync(new URL(f, fd), 'utf8')
       expect(src).not.toMatch(/import com\.google|InstallPlugin/)
     }
+    const watch = readFileSync(new URL('src/noWatch/java/ch/duartesantos/opengym/WatchBridgePlugin.java', app), 'utf8')
+    expect(watch).not.toMatch(/import com\.google|InstallPlugin/)
     const manifest = readFileSync(new URL('src/fdroid/AndroidManifest.xml', app), 'utf8')
     expect(manifest).toMatch(/WatchListenerService" tools:node="remove"/)
   })

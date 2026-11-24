@@ -8,7 +8,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.JSArray;
 
 /**
- * The Wear OS watch link in the F-Droid build: there is none. Wear OS watches reach the phone only
+ * Stub for builds without a Wear OS watch link. Wear OS watches reach the phone only
  * through the Wearable Data Layer of Google Play services, and an F-Droid app carries nothing from
  * Google Play services. Same name and calls as the real plugin (src/gms), so the page needs no
  * second code path: status() says "no watch" and lib/watch-sync.js then sends nothing at all.

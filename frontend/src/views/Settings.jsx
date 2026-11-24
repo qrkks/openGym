@@ -64,7 +64,7 @@ import { CUSTOM, accentKey, adjustedIn, applyAccent, cleanHex, inkOn, isGrey } f
 import { checkForUpdate, downloadAndInstall, fetchChecksum, forgetDownloadedUpdate, RELEASES_PAGE } from '../lib/update.js'
 import { APK_VARIANT, VARIANT_NAMES } from '../lib/apk-variant.js'
 import { BUILTIN_PX } from '../lib/anim-quality.js'
-import { getChannel, gymReminderBuilt } from '../lib/channel.js'
+import { getChannel, gymReminderBuilt, updatesInApp } from '../lib/channel.js'
 import { forgetCoach } from '../lib/coach-api.js'
 import { coachAvailable } from '../lib/coach.js'
 import { REST_MAX, REST_PAUSE_MIN, REST_PAUSE_MAX, fmtRest, fmtDuration } from '../lib/duration.js'
@@ -270,7 +270,7 @@ export default function Settings({ page = null, find = null, via = null, entryKe
       setAndroid(ok)
       setIos(!ok)
       const channel = ok ? await getChannel() : null
-      const own = channel === 'sideload'
+      const own = updatesInApp(channel)
       setSelfUpdate(own)
       setPlay(channel === 'play')
       setFdroid(channel === 'fdroid' || channel === 'offline')

@@ -252,7 +252,7 @@ describe('the Android app is set up for Garmin Connect', () => {
     expect(has(gradle, /playImplementation "com\.garmin\.connectiq:ciq-companion-app-sdk:/)).toBe(true)
     expect(has(gradle, /fdroidImplementation "com\.garmin/)).toBe(false)
     expect(has(gradle, /^\s*implementation "com\.garmin/m)).toBe(false)
-    const fdroid = read('android', 'app', 'src', 'fdroid', 'java', 'ch', 'duartesantos', 'opengym', 'WatchBridgePlugin.java')
+    const fdroid = read('android', 'app', 'src', 'noWatch', 'java', 'ch', 'duartesantos', 'opengym', 'WatchBridgePlugin.java')
     expect(has(fdroid, /out\.put\("state", "build"\)/)).toBe(true)
     expect(has(fdroid, /import com\.garmin/)).toBe(false)
   })
