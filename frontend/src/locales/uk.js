@@ -1,5 +1,11 @@
 // Ukrainian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Спортивна статистика",
+  "All sports": "Усі види спорту",
+  "Training days": "Дні тренувань",
+  "Monthly": "За місяцями",
+  "No sport activities in this period": "У цьому періоді немає спортивних занять",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Годинники",
   "Set once": "Налаштовується один раз",

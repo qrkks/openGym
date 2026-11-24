@@ -1,5 +1,11 @@
 // Persian UI strings. Keys are the English source strings.
 export default {
+  // Sport Statistics
+  "Sport Statistics": "آمار ورزش",
+  "All sports": "همهٔ ورزش‌ها",
+  "Training days": "روزهای تمرین",
+  "Monthly": "ماهانه",
+  "No sport activities in this period": "در این بازه فعالیت ورزشی ثبت نشده است",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "ساعت‌ها",
   "Set once": "یک‌بار تنظیم",

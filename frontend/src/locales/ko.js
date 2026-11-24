@@ -1,5 +1,11 @@
 // Korean UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "스포츠 통계",
+  "All sports": "모든 스포츠",
+  "Training days": "운동 일수",
+  "Monthly": "월별",
+  "No sport activities in this period": "이 기간에 기록된 스포츠 활동이 없습니다",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "워치",
   "Set once": "한 번만 설정",

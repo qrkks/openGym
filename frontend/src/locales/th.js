@@ -1,5 +1,11 @@
 // Thai UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "สถิติกีฬา",
+  "All sports": "กีฬาทั้งหมด",
+  "Training days": "จำนวนวันฝึก",
+  "Monthly": "รายเดือน",
+  "No sport activities in this period": "ไม่มีกิจกรรมกีฬาในช่วงนี้",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "นาฬิกา",
   "Set once": "ตั้งครั้งเดียว",

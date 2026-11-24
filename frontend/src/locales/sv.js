@@ -1,5 +1,11 @@
 // Swedish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Sportstatistik",
+  "All sports": "Alla sporter",
+  "Training days": "Träningsdagar",
+  "Monthly": "Månadsvis",
+  "No sport activities in this period": "Inga sportaktiviteter under den här perioden",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Klockor",
   "Set once": "Ställ in en gång",

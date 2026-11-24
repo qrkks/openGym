@@ -1,5 +1,11 @@
 // Hungarian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Sportstatisztika",
+  "All sports": "Minden sportág",
+  "Training days": "Edzésnapok",
+  "Monthly": "Havonta",
+  "No sport activities in this period": "Ebben az időszakban nincs rögzített sporttevékenység",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Órák",
   "Set once": "Egyszer beállítandó",

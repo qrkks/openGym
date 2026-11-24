@@ -1,5 +1,11 @@
 // Russian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Спортивная статистика",
+  "All sports": "Все виды спорта",
+  "Training days": "Дни тренировок",
+  "Monthly": "По месяцам",
+  "No sport activities in this period": "В этом периоде нет спортивных занятий",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Часы",
   "Set once": "Настраивается один раз",

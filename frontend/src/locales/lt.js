@@ -1,5 +1,11 @@
 // Lithuanian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Sporto statistika",
+  "All sports": "Visos sporto šakos",
+  "Training days": "Treniruočių dienos",
+  "Monthly": "Kas mėnesį",
+  "No sport activities in this period": "Šiuo laikotarpiu nėra sporto veiklų",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Laikrodžiai",
   "Set once": "Nustatoma kartą",

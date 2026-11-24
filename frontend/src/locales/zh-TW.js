@@ -1,4 +1,10 @@
 export default {
+  // Sport Statistics
+  "Sport Statistics": "運動活動統計",
+  "All sports": "全部運動",
+  "Training days": "訓練天數",
+  "Monthly": "按月",
+  "No sport activities in this period": "這段期間沒有運動活動紀錄",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "手錶",
   "Set once": "設定一次",

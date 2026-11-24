@@ -4,6 +4,12 @@
 import pt from './pt.js'
 
 export const PT_BR_OVERRIDES = {
+  // Sport Statistics
+  "Sport Statistics": "Estatísticas esportivas",
+  "All sports": "Todos os esportes",
+  "Training days": "Dias de treino",
+  "Monthly": "Mensal",
+  "No sport activities in this period": "Sem atividades esportivas neste período",
   // --- Settings first screen in groups (#1105); "Watches" (Relógios) is inherited ---
   "Set once": "Configurar uma vez",
   "Connections": "Conexões",

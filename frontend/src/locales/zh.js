@@ -1,5 +1,11 @@
 // Simplified Chinese UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "运动活动统计",
+  "All sports": "全部运动",
+  "Training days": "训练天数",
+  "Monthly": "按月",
+  "No sport activities in this period": "这段时间没有运动活动记录",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "手表",
   "Set once": "设置一次",
