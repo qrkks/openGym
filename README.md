@@ -10,13 +10,13 @@
 
 <a href="https://discord.gg/e62jY6fwVb"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2Fe62jY6fwVb%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&label=Discord&logo=discord&logoColor=white&style=flat-square&labelColor=0c0e12&color=a3e635" alt="Discord"></a>
 <a href="https://github.com/DuarteSantos8/openGym/stargazers"><img src="https://img.shields.io/github/stars/DuarteSantos8/openGym?logo=github&logoColor=white&label=stars&style=flat-square&labelColor=0c0e12&color=a3e635" alt="Stars"></a>
-<a href="https://github.com/DuarteSantos8/openGym/releases"><img src="https://img.shields.io/github/v/release/DuarteSantos8/openGym?label=release&style=flat-square&labelColor=0c0e12&color=a3e635" alt="Release"></a>
-<a href="https://github.com/DuarteSantos8/openGym/releases"><img src="https://img.shields.io/github/downloads/DuarteSantos8/openGym/total?label=downloads&style=flat-square&labelColor=0c0e12&color=a3e635" alt="Downloads"></a>
+<a href="https://github.com/qrkks/openGym/releases/latest"><img src="https://img.shields.io/badge/Android-Personal%20release-a3e635?style=flat-square&labelColor=0c0e12" alt="OpenGym Personal release"></a>
+<a href="https://github.com/DuarteSantos8/openGym/releases"><img src="https://img.shields.io/github/downloads/DuarteSantos8/openGym/total?label=upstream%20downloads&style=flat-square&labelColor=0c0e12&color=a3e635" alt="Upstream downloads"></a>
 <a href="https://github.com/DuarteSantos8/openGym/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/DuarteSantos8/openGym/test.yml?branch=main&label=tests&style=flat-square&labelColor=0c0e12&color=a3e635" alt="Tests"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-a3e635?style=flat-square&labelColor=0c0e12&color=a3e635" alt="AGPL-3.0"></a>
 
 <a href="https://apps.apple.com/app/id6822275400"><img src="website/app-store-badge.svg" alt="Download on the App Store" height="40"></a>
-<a href="https://github.com/DuarteSantos8/openGym/releases/latest"><img src="assets/readme/badge-android.svg" alt="Download the Android APK" height="40"></a>
+<a href="https://github.com/qrkks/openGym/releases/latest"><img src="assets/readme/badge-android.svg" alt="Download the OpenGym Personal Android APK" height="40"></a>
 <a href="docs/SELF_HOSTING.md"><img src="assets/readme/badge-selfhost.svg" alt="Self-host with Docker" height="40"></a>
 
 <a href="https://trendshift.io/repositories/88268?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-88268" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/88268" alt="DuarteSantos8%2FopenGym | Trendshift" width="250" height="55"/></a>
@@ -28,6 +28,27 @@
 <a href="https://ko-fi.com/opengym"><img src="assets/readme/badge-kofi.svg" alt="Support openGym on Ko-fi" height="40"></a>
 
 </div>
+
+## OpenGym Personal for Android
+
+This fork adds **Sport Statistics** under **Stats → Overview**. See how many activities you logged,
+how long they took, and how many days you trained. Filter by sport and date, view weekly or monthly
+trends, and browse activity history by sport. The totals count logged activities only.
+
+Download `openGym-Personal-<version>.apk` from the [latest Android release](https://github.com/qrkks/openGym/releases/latest).
+On first launch, choose **Use on this device** to keep your records on your phone. If you already have
+OpenGym Personal, install the APK over it to keep your records. The personal and upstream apps can be
+installed side by side and store their data separately. Future updates are available under
+**Settings → About & updates → Check for updates**.
+
+**中文安装说明**
+
+从 [最新安卓发布](https://github.com/qrkks/openGym/releases/latest) 下载 `openGym-Personal-<版本>.apk`。
+首次打开时选 **在此设备上使用**，即可在手机上保存训练记录。已有自用版可直接覆盖安装，保留记录。
+在 **统计 → 概览 → 运动活动统计** 查看已记录的次数、时长、训练天数和趋势。
+以后在 **设置 → 关于与更新 → 检查更新** 获取新版。
+
+Upstream project and official app downloads are maintained by [DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym).
 
 ## Why openGym
 
@@ -213,11 +234,12 @@ the phone, no account) or connect them to your server and sync.
 | | Get it |
 |---|---|
 | **iPhone and iPad**, with the **Apple Watch** app | The [App Store](https://apps.apple.com/app/id6822275400), in every App Store country |
-| **Android** | The signed APK from the [latest release](https://github.com/DuarteSantos8/openGym/releases/latest) or [opengym.ch](https://opengym.ch), in three sizes: **Standard** (`openGym-X.Y.Z.apk`, animations at 180 px, about 315 MB), **Plus** (`openGym-Plus-X.Y.Z.apk`, 240 px, about 424 MB) and **HD** (`openGym-HD-X.Y.Z.apk`, 360 px, about 760 MB). It updates itself and stays the kind you picked |
+| **Android (Personal)** | The signed APK from [this fork's latest release](https://github.com/qrkks/openGym/releases/latest). See [installation and updates](#opengym-personal-for-android) |
+| **Android (upstream)** | The signed APK from the [upstream release](https://github.com/DuarteSantos8/openGym/releases/latest) or [opengym.ch](https://opengym.ch), in three sizes: **Standard** (`openGym-X.Y.Z.apk`, animations at 180 px, about 315 MB), **Plus** (`openGym-Plus-X.Y.Z.apk`, 240 px, about 424 MB) and **HD** (`openGym-HD-X.Y.Z.apk`, 360 px, about 760 MB). It updates itself and stays the kind you picked |
 | **Google Play** | In closed testing: Google wants 12 testers for 14 days before it lets everyone in. Join the [tester group](https://groups.google.com/g/opengym-testers/about), then [opt in](https://play.google.com/apps/testing/ch.duartesantos.opengym). It installs right over the APK and keeps your data |
 | **Wear OS watch** (beta) | Rides along with the Google Play test: once Google's watch review is done, "openGym Beta" shows up in the Play Store on your Galaxy Watch, Pixel Watch and friends. Details: [docs/WEAR_OS.md](docs/WEAR_OS.md) |
 
-Every APK sits next to its `.sha256`. The APK and the Play app share one signing key, so you can
+Every APK sits next to its `.sha256`. The upstream APKs and the Play app share one signing key, so you can
 switch between them (or between Standard, Plus and HD) without losing data. Details, building it
 yourself and connecting to your server: [docs/MOBILE.md](docs/MOBILE.md).
 
