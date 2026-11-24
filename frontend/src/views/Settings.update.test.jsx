@@ -56,7 +56,11 @@ vi.mock('../lib/update.js', () => ({
   downloadAndInstall: vi.fn(),
   forgetDownloadedUpdate: (...a) => mocks.forget(...a),
 }))
-vi.mock('../lib/channel.js', () => ({ getChannel: () => Promise.resolve(mocks.channel), gymReminderBuilt: () => Promise.resolve(true) }))
+vi.mock('../lib/channel.js', async (importOriginal) => ({
+  ...await importOriginal(),
+  getChannel: () => Promise.resolve(mocks.channel),
+  gymReminderBuilt: () => Promise.resolve(true),
+}))
 vi.mock('./MobileOnboarding.jsx', () => ({ ConnectSheet: () => null }))
 vi.mock('../sheets.jsx', () => ({
   starterPlanSheet: vi.fn(), confirmSheet: (...a) => mocks.confirmSheet(...a), importFromApp: vi.fn(),
@@ -132,6 +136,15 @@ describe('Settings — in-app update check', () => {
     act(() => { updateRow().click() })
     expect(mocks.confirmSheet).toHaveBeenCalledTimes(1)
     expect(mocks.confirmSheet.mock.calls[0][0].title).toBe('Update to 9.9.9?')
+  })
+
+  it('shows the update action in the personal Android build', async () => {
+    mocks.MOBILE = true
+    mocks.android = true
+    mocks.channel = 'personal'
+    await mount()
+    expect(mocks.checkForUpdate).toHaveBeenCalledTimes(1)
+    expect(updateRow()).toBeTruthy()
   })
 
   it('Android without a newer release: a "Check for updates" row stays, and tapping it checks again', async () => {
