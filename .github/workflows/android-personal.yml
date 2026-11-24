@@ -35,6 +35,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: Set the personal app version
         id: version
@@ -56,9 +60,7 @@ jobs:
         run: npm run build:mobile
       - name: Build the Android release APK
         working-directory: frontend/android
-        run: |
-          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
-          ./gradlew --no-daemon -PpersonalRevision="$GITHUB_RUN_NUMBER" testPersonalDebugUnitTest assemblePersonalRelease
+        run: ./gradlew --no-daemon -PpersonalRevision="$GITHUB_RUN_NUMBER" testPersonalDebugUnitTest assemblePersonalRelease
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: personal-unsigned
@@ -77,6 +79,10 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: 'build-tools;36.0.0'
+          log-accepted-android-sdk-licenses: false
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: personal-unsigned
@@ -87,7 +93,6 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           set -euo pipefail
-          sdkmanager 'build-tools;36.0.0'
           tools="$ANDROID_HOME/build-tools/36.0.0"
           : "${ANDROID_KEYSTORE_B64:?Configure the Android release keystore secret}"
           : "${ANDROID_KEYSTORE_PASSWORD:?Configure the Android release password secret}"
