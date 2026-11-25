@@ -1,9 +1,6 @@
 name: Build openGym Extended for Android
 
 on:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/android-personal.yml']
   workflow_dispatch:
     inputs:
       draft_release:
@@ -20,10 +17,7 @@ concurrency:
 
 jobs:
   build:
-    if: >-
-      github.repository == 'qrkks/openGym' && github.ref == 'refs/heads/main' &&
-      (github.event_name == 'workflow_dispatch' ||
-      (github.run_number == 6 && startsWith(github.event.head_commit.message, 'Publish openGym Extended 1.4.5.6')))
+    if: github.repository == 'qrkks/openGym' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -131,8 +125,7 @@ jobs:
           retention-days: 14
 
   draft:
-    name: Prepare the GitHub release
-    if: inputs.draft_release || github.event_name == 'push'
+    if: inputs.draft_release
     needs: [build, sign]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -142,24 +135,13 @@ jobs:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: opengym-personal-${{ needs.build.outputs.version }}
-      - name: Create the GitHub release
+      - name: Create the GitHub release draft
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           file="openGym-Personal-$VERSION.apk"
           sha256sum --check "$file.sha256"
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            [[ "$VERSION" == 1.4.5.6 ]]
-            gh api "repos/$GITHUB_REPOSITORY/contents/CHANGELOG.md?ref=$GITHUB_SHA" --jq '.content' |
-              base64 --decode |
-              awk -v heading="## v$VERSION " 'index($0, heading) == 1 { found=1; next } found && /^## / { found=0 } found { print }' > release-notes.md
-            grep -q '^-' release-notes.md
-            gh release create "personal-v$VERSION" "$file" "$file.sha256" \
-              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
-              --title "openGym Extended $VERSION · 训练、运动与恢复" --notes-file release-notes.md
-          else
-            gh release create "personal-v$VERSION" "$file" "$file.sha256" \
-              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --latest \
-              --title "openGym Extended $VERSION" --notes "Signed Android APK for openGym Extended, built from $GITHUB_SHA."
-          fi
+          gh release create "personal-v$VERSION" "$file" "$file.sha256" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --latest \
+            --title "openGym Extended $VERSION" --notes "Signed Android APK for openGym Extended, built from $GITHUB_SHA."
