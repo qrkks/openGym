@@ -1,4 +1,4 @@
-name: Build OpenGym Personal for Android
+name: Build openGym Extended for Android
 
 on:
   workflow_dispatch:
@@ -40,7 +40,7 @@ jobs:
           packages: 'platforms;android-36 build-tools;36.0.0'
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
-      - name: Set the personal app version
+      - name: Set the Extended app version
         id: version
         working-directory: frontend
         run: |
@@ -144,4 +144,4 @@ jobs:
           sha256sum --check "$file.sha256"
           gh release create "personal-v$VERSION" "$file" "$file.sha256" \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --latest \
-            --title "OpenGym Personal $VERSION" --notes "Android build of $GITHUB_SHA."
+            --title "openGym Extended $VERSION" --notes "Signed Android APK for openGym Extended, built from $GITHUB_SHA."
