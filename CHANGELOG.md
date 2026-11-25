@@ -4,7 +4,7 @@ Newest first. Each release is a `## vX.Y.Z (YYYY-MM-DD)` section, and the releas
 GitHub and GitLab are that section, word for word. New work goes under `## Unreleased` until the
 tag. Write it for the people using the app: what changed for them, short, no em dashes.
 
-## v1.4.5.4 (2026-11-25)
+## v1.4.5.5 (2026-11-25)
 
 **openGym Extended · 训练、运动与恢复**
 

@@ -3437,7 +3437,7 @@ function DayOverride({ iso, close }) {
       {missed && <Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button>}
       <Button variant={missed ? 'tinted' : 'primary'} icon="shuffle" onClick={logFreestyle}>{t('Log a freestyle workout')}</Button>
     </div>}
-    {(scheduled || iso >= today) && <div className="list" style={{ marginBottom: 14 }}>
+    {(scheduled || iso >= today) && <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
       {scheduled && <Row icon="dumbbell" title={scheduled.name} subtitle={exCount(scheduled.ex.length)}
         accessory="chevron" value={scheduledDone ? t('Done') : undefined} onClick={() => scheduledWorkoutSheet(iso)} />}
       {!scheduled && <Button variant="tinted" icon="plus" onClick={() => scheduledWorkoutSheet(iso)}>{t('Schedule a one-off workout')}</Button>}
@@ -3651,7 +3651,7 @@ function DayAssign({ day, close }) {
     const next = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
     if (next.length) s.week[day] = next; else delete s.week[day]
   })
-  const rest = () => update(s => { delete s.week[day] })
+  const rest = () => { update(s => { delete s.week[day] }); close() }
   return <>
     <h3 style={{ marginBottom: 2 }}>{t(DAYN[day])}</h3>
     <h4 className="sec">{t('Strength training')}</h4>
