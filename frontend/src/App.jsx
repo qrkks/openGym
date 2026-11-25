@@ -51,7 +51,7 @@ import { MOBILE, nativePlatform } from './lib/mobile.js'
 import { isOn } from './lib/modules.js'
 import { useTour } from './lib/tour.js'
 import { useTourOffer } from './lib/tour-offer.js'
-import { exitWorkoutEdit, startFlow, beginWorkout, bwSheet, finishWorkoutNow, confirmSheet } from './sheets.jsx'
+import { exitWorkoutEdit, startFlow, beginWorkout, bwSheet, finishWorkoutNow, confirmSheet, startScheduledWorkout } from './sheets.jsx'
 import { BrandMark } from './components/BrandLogo.jsx'
 import TabBar from './components/TabBar.jsx'
 import { startOrPreview, startPickerSheet } from './components/StartSheets.jsx'
@@ -454,7 +454,7 @@ function Shell() {
           would ride along with the page for the length of it. Decides for itself when to show —
           including on the sign-in screen, when the server has just ended the session. */}
       <SyncBanner />
-      {!noTabs && <TabBar onStart={startOrPreview} onPick={startPickerSheet} />}
+      {!noTabs && <TabBar onStart={startOrPreview} onStartScheduled={startScheduledWorkout} onPick={startPickerSheet} />}
       {!noTabs && authed && <ScrollTopButton off={loc.pathname === '/workout'} path={loc.pathname} />}
       <RestTimer />
       {/* A circuit's clock, the whole screen (lib/circuit.js): opened from its card in the workout. */}

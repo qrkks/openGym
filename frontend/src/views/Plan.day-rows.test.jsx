@@ -8,6 +8,7 @@ import React, { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Plan from './Plan.jsx'
+import { isoOf } from '../lib/format.js'
 import { dayAssignSheet, menuSheet } from '../sheets.jsx'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -77,6 +78,24 @@ describe('Plan — the weekday rows', () => {
     expect(tuesday.textContent).toContain('Tap to plan something')
     act(() => tuesday.click())
     expect(dayAssignSheet).toHaveBeenCalledWith(2)
+  })
+
+  it('shows strength and sport completion independently on the same weekday', () => {
+    const now = new Date()
+    const day = now.getDay()
+    const date = isoOf(now)
+    mocks.S.week[day] = ['r1']
+    mocks.S.sportPlan = { [day + ':fight']: { on: true, _ts: 1 } }
+    mocks.S.activities = { boxing: { d: date, sport: 'fight', min: 45 } }
+    mount()
+    const row = host.querySelector(`.plan-day[data-day="${day}"]`)
+    expect(row.textContent).toContain('Push')
+    expect(row.querySelector('[data-sport="fight"]').dataset.done).toBe('true')
+    expect(row.querySelector('.tag')).toBeNull()
+
+    mocks.S.workouts = [{ id: 'lift', d: date, routineIds: ['r1'] }]
+    mount()
+    expect(row.querySelector('.tag').textContent).toBe('Done')
   })
 
   it('opens on the keyboard too', () => {

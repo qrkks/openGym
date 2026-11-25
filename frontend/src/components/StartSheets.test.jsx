@@ -51,6 +51,26 @@ describe('the start picker (#930)', () => {
     expect(started).toEqual([['mob']])
     expect(useUI.getState().sheets).toHaveLength(0)
   })
+  it('starts the dated extra workout after the regular workout is done', () => {
+    const day = todayISO()
+    const onStart = vi.fn()
+    const onStartScheduled = vi.fn()
+    act(() => useStore.getState().update(s => {
+      s.scheduledWorkouts = { [day]: { id: 'extra', name: 'Extra', ex: [{ id: '0025' }] } }
+    }))
+    act(() => root.render(<TabBar onStart={onStart} onStartScheduled={onStartScheduled} />))
+    const btn = host.querySelector('[data-tour="start"]')
+    act(() => btn.click())
+    expect(onStart).toHaveBeenCalledWith(['push'])
+    expect(onStartScheduled).not.toHaveBeenCalled()
+    act(() => useStore.getState().update(s => {
+      s.workouts.push({ d: day, id: 'w', routineIds: ['push'], entries: [] })
+    }))
+    act(() => btn.click())
+    expect(onStartScheduled).toHaveBeenCalledWith(day)
+    expect(onStart).toHaveBeenCalledTimes(1)
+  })
+
   it('the Start tab: a tap starts today, a long press opens the picker, "Let me pick" asks every time', () => {
     vi.useFakeTimers()
     try {

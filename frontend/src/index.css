@@ -774,8 +774,17 @@ h4.sec{
   .exmedia .gifhint,.exmedia .giftoggle{background:rgba(0,0,0,.8)}
 }
 
-/* ------------------------------------------------------------ week strip -- */
+/* ------------------------------------------------------------ home calendar -- */
+.home-calendar-controls{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin-bottom:8px}
+.home-calendar-period{flex:1 1 178px;min-width:0;gap:6px}
+.home-calendar-period .iconbtn{width:34px;height:36px;font-size:var(--fs-subhead);flex:none}
+.home-calendar-label{text-align:center;font-weight:500}
 .week{display:flex;justify-content:space-between;gap:4px}
+.home-calendar .week.home-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.home-calendar .wday>span:not(.wday-marks){display:block}
+.home-calendar .wday.today .num{display:flex}
+.home-month .wday{min-height:44px;padding:4px 2px}
+.home-rotation{margin-top:10px;padding-top:10px;border-top:var(--hair) solid var(--sep)}
 .wday{
   flex:1;text-align:center;padding:8px 2px 9px;border-radius:10px;
   background:none;border:none;transition:background var(--fast);
@@ -785,6 +794,12 @@ h4.sec{
 .wday .lbl{font-size:var(--fs-caption);color:var(--label-2);font-weight:500;letter-spacing:0}
 .wday .num{font-size:var(--fs-body);font-weight:400;margin:4px 0;letter-spacing:-.012em}
 .wday .dot{width:5px;height:5px;border-radius:50%;background:transparent;margin:0 auto}
+.wday-marks{display:flex;justify-content:center;gap:5px}
+.wday-marks .dot{margin:0}
+.sport-mark,.recovery-mark{width:5px;height:5px;border:1px solid var(--mark-color);flex:none}
+.sport-mark{--mark-color:var(--blue);border-radius:2px}
+.recovery-mark{--mark-color:var(--teal);border-radius:50%}
+.sport-mark.done,.recovery-mark.done{background:var(--mark-color)}
 .wday .dot.plan{background:var(--label-3)}
 .wday .dot.ovr{background:var(--orange)}
 .wday .dot.done{background:var(--acc)}
@@ -796,6 +811,7 @@ h4.sec{
   width:31px;height:31px;border-radius:50%;display:flex;align-items:center;
   justify-content:center;margin:2px auto;
 }
+.home-month .wday .num{width:26px;height:26px;line-height:26px;margin:0 auto 2px}
 
 /* ----------------------------------------------------------------- list -- */
 .list{display:flex;flex-direction:column;gap:8px}
@@ -3012,9 +3028,6 @@ body.totop-on.resting #app{padding-bottom:calc(232px + var(--sab))}
 .cal-d i.plan{background:var(--label-3)}
 .cal-d i.ovr{background:var(--orange)}
 .cal-d i.noted{background:var(--indigo)}
-.cal-d i.recov{background:var(--teal)}
-/* A day with a run or a match (lib/activities.js). */
-.cal-d i.sport{background:var(--blue)}
 /* openNutrition's fasting window on Home (components/SisterApps.jsx FastingLine). */
 .fast-line{display:flex;gap:6px;align-items:center;justify-content:center;margin-top:6px;text-align:center}
 /* A note pinned at the active gym (lib/journal.js): the gym's map pin, in teal. */
@@ -3035,6 +3048,7 @@ body.totop-on.resting #app{padding-bottom:calc(232px + var(--sab))}
 .wk-note-a{display:block;margin-top:6px;padding:0;border:0;background:none;color:var(--acc-ink);font:inherit;font-weight:500;cursor:pointer;min-height:24px}
 .cal-legend{display:flex;gap:14px;justify-content:center;margin-top:12px;font-size:var(--fs-caption);color:var(--label-3)}
 .cal-legend i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-inline-end:5px}
+.cal-legend :is(.sport-mark,.recovery-mark){display:inline-block;margin-inline-end:5px}
 /* The streak in the calendar (components/StreakCalendar.jsx): an eighth column with each week's
    mark, a frozen week washed in the freeze's colour, one line on the tapped week. The marks are
    shapes as well as colours (flame, freeze, ring, dashed ring), so they read without colour. */
@@ -3279,6 +3293,9 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
   transition:background var(--fast);width:100%;text-align: start;cursor:pointer;
 }
 .today-row:active{background:var(--surface-3)}
+.home-sport-rows,.home-recovery-rows,.home-scheduled-workout{margin-top:8px;background:var(--surface-2);border-radius:var(--r)}
+:is(.home-sport-rows,.home-recovery-rows) .lrow+.lrow{border-top:var(--hair) solid var(--sep)}
+.home-quick-actions{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;margin-top:4px}
 /* The small line over a card's or row's title ("Today", "At the gym", "Recovery", "Running now") in
    sentence case and the readable grey, one rule for all of them: the check-in and recovery cards
    never had one, so "At the gym" / "Check in" rendered as two equal 17px titles. The rest-day line under the title is a subtitle, not a second title. */
@@ -3441,6 +3458,11 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 /* a weekday: short day name, the routine's glyph (a moon on a rest day), what is on it */
 .plan-day-n{min-width:30px;flex:none;white-space:nowrap;font-size:var(--fs-subhead);font-weight:600;color:var(--label-2)}
 .plan-day-n.today{color:var(--acc-ink)}
+.plan-sport{display:flex;align-items:center;gap:5px;margin-top:3px;font-size:var(--fs-footnote);color:var(--label-2)}
+.plan-sport .icn{flex:none}
+.plan-sport[data-done="true"] .icn{color:var(--green)}
+.history-log-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.history-filter{margin-bottom:12px}
 /* Arabic names the whole day: one column wide enough for the longest keeps the glyphs aligned */
 [dir="rtl"] .plan-day-n{min-width:88px}
 .item .lrow-i.rest{background:var(--surface-3);color:var(--label-2)}
@@ -3886,11 +3908,16 @@ button.wl-summary{width:100%;padding:0 0 10px;text-align:start;border-radius:var
 .wkleft.done{color:var(--green-ink)}
 
 /* ------------------------------------------------------ stats redesign -- */
-/* The headline numbers as one divided card (app screens: KPIs are type, not tiles): three across,
-   the lifetime total under them at full width. */
+/* The month overview shares the divided card layout with the training totals. */
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px;background:var(--surface);border-radius:var(--r-card)}
-/* Two across when the Body module is off (Settings → Modules): no Weight 30d, no empty third. */
-.kpis.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.kpis-training{grid-template-columns:minmax(0,1fr)}
+.kpis-training.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.stats-month h2{margin:0 0 8px;font-size:var(--fs-body)}
+.kpis-month button.tile{display:flex;flex-direction:column;align-items:stretch;gap:3px;border:0;color:inherit;font:inherit;text-align:start;cursor:pointer}
+.kpis-month button.tile:hover{background:var(--surface-2)}
+.kpis-month button.tile:focus-visible{outline-offset:-3px}
+.stats-month-icons{display:flex;align-items:center;justify-content:space-between;color:var(--label-2)}
+.kpis-month .v{font-weight:700;font-variant-numeric:tabular-nums}
 .kpis .tile{background:none;border-radius:0;padding:12px 14px;min-width:0;position:relative}
 .kpis .tile+.tile{border-inline-start:var(--hair) solid var(--sep)}
 .kpis .tile.wide{grid-column:1 / -1;border-inline-start:0;border-top:var(--hair) solid var(--sep)}

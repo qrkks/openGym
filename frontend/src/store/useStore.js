@@ -11,6 +11,8 @@ import { guestAllowed } from '../lib/guest.js'
 import { stateJson } from '../lib/state-json.js'
 import { MOBILE, initReminderSync, nativeLoad, nativeSave, onAppActive, readJsonFile, syncReminder, writeAutoBackup, writeJsonFile } from '../lib/mobile.js'
 import { initHealthSync, syncHealth, readHealth } from '../lib/health-sync.js'
+import { readActivity } from '../lib/activities.js'
+import { readRecovery } from '../lib/recovery-sessions.js'
 import { refillIfComplete } from '../lib/rotation.js'
 import { liftLegacy } from '../lib/sync-legacy.js'
 import { mergeStates, localExtras, stampChange, highestStamp, stampRestore, stampReplace, inUnitOf, keepReset, resetIdsOf, mergeResetIds, entryKey } from '../lib/sync-merge.js'
@@ -383,7 +385,11 @@ function loadState() {
 // weigh-ins and custom exercises. A custom exercise is all a new guest may have made — with its
 // photo or video, which the server counts as unreferenced until the state that names it lands —
 // so a profile created from such a copy takes it at once, like one holding a workout.
-const hasData = st => !!((st.workouts || []).length || (st.routines || []).length || (st.bodyweight || []).length || (st.customEx || []).length || (st.measurements || []).length || Object.values(st.exAliases || {}).some(v => Array.isArray(v) && v.length))
+const hasData = st => !!((st.workouts || []).length || (st.routines || []).length || (st.bodyweight || []).length ||
+  (st.customEx || []).length || (st.measurements || []).length || Object.values(st.exAliases || {}).some(v => Array.isArray(v) && v.length) ||
+  Object.values(st.activities || {}).some(readActivity) || Object.values(st.sportPlan || {}).some(v => v?.on === true) ||
+  Object.values(st.scheduledWorkouts || {}).some(v => v?.id) || Object.values(st.datedActivityPlan || {}).some(v => v?.on === true) ||
+  Object.values(st.recoverySessions || {}).some(readRecovery))
 
 // Decide whether a pulled account state may replace the local saved state. A local active workout
 // is deliberately carried forward: the server stores completed/saved state, while the in-progress

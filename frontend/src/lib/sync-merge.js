@@ -93,7 +93,7 @@ const list = v => (Array.isArray(v) ? v : [])
 // recoverySessions is a sauna or an ice bath (lib/recovery-sessions.js), one entry per session;
 // gymNotes a note pinned at one gym, journalFolders a saved journal filter (lib/journal.js),
 // activities a run or a football match (lib/activities.js), one entry per session.
-export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'exGym', 'sessionTargets', 'exMedia', 'recoverySessions', 'gymNotes', 'journalFolders', 'dayForm', 'activities']
+export const STAMPED_MAPS = ['balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'exGym', 'sessionTargets', 'exMedia', 'recoverySessions', 'gymNotes', 'journalFolders', 'dayForm', 'activities', 'sportPlan', 'scheduledWorkouts', 'datedActivityPlan']
 
 /** The copy with the later `_ts`; on a tie the first argument (callers pass local first). */
 export const newerOf = (a, b) => ((b?._ts || 0) > (a?._ts || 0) ? b : a)
@@ -719,7 +719,7 @@ function applyDeletions(S, deleted) {
 const OWN_MERGE = new Set([
   '_ts', '_rev', '_wid', '_wids', '_unstamped', '_prior', 'active', 'unit', 'unitSet', 'resetAt', 'resetIds', 'deleted', 'edited', 'undone', 'routineOrder',
   'workouts', 'routines', 'customEx', 'equipProfiles', 'gymCards', 'bodyweight', 'measurements', 'favEx',
-  'exWeights', 'balanceOverrides', 'loadKind', 'plates', 'dbLoad', 'dumbbells', 'stackWeights', 'exUnit', 'dayNotes', 'dayPhotos', 'exMerged', 'exGym', 'sessionTargets', 'exMedia', 'recoverySessions', 'gymNotes', 'journalFolders', 'dayForm', 'activities',
+  'exWeights', ...STAMPED_MAPS,
 ])
 // Stamped per key instead of whole: one day of the plan, one exercise's note or bar, one programme
 // (lib/programmes.js; the running one, `programme`, is a plain setting).
@@ -1274,6 +1274,11 @@ export function localExtras(local, server) {
   const setup = ['gymCards', 'equipProfiles'].reduce((n, f) => n + list(local?.[f]).filter(x => x && x.id != null && !ids(f).has(x.id)).length, 0) +
     list(local?.measurements).filter(e => e && e.d != null && !measured.has(e.d)).length +
     Object.entries(isMap(local?.dayNotes) ? local.dayNotes : {}).filter(([k, v]) => readNote(v) && !readNote(server?.dayNotes?.[k])).length +
+    Object.entries(local?.sportPlan || {}).filter(([k, v]) => v?.on === true && server?.sportPlan?.[k]?.on !== true).length +
+    Object.entries(local?.scheduledWorkouts || {}).filter(([day, plan]) => plan?.id && !server?.scheduledWorkouts?.[day]?.id).length +
+    Object.entries(local?.datedActivityPlan || {}).filter(([k, v]) => v?.on === true && server?.datedActivityPlan?.[k]?.on !== true).length +
+    Object.entries(local?.activities || {}).filter(([k, v]) => v?.d && v.min > 0 && !server?.activities?.[k]?.d).length +
+    Object.entries(local?.recoverySessions || {}).filter(([k, v]) => v?.d && v.min > 0 && !server?.recoverySessions?.[k]?.d).length +
     keysNew('week') + keysNew('dayPlan') + keysNew('exNotes') + keysNew('exAliases') + keysNew('exShownName') + keysNew('programmes')
   return {
     workouts: list(local?.workouts).filter(w => !have.has(workoutKey(w))).length,

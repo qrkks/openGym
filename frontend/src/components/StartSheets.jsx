@@ -3,13 +3,14 @@ import Icon from './Icon.jsx'
 import { useMemo } from 'react'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { startFlow, menuSheet } from '../sheets.jsx'
+import { startFlow, menuSheet, startScheduledWorkout } from '../sheets.jsx'
 import { t, tn, exerciseNameFor, exerciseNameClass } from '../lib/i18n.js'
 import { exCount, todayISO, DAYN, fmtDaysAgo } from '../lib/format.js'
 import { setLabel } from '../lib/history.js'
 import { isWarmupRow } from '../lib/workout-model.js'
 import { buildCombinedEntries, deriveSessionName } from '../lib/session-merge.js'
 import { daySessionsStatus } from '../lib/day-sessions.js'
+import { scheduledWorkoutOf, completedScheduledWorkout } from '../lib/scheduled-workouts.js'
 import { exOr } from '../lib/exercises.js'
 import { speedUnitOf } from '../lib/speed.js'
 import { glyphOf } from '../lib/glyphs.js'
@@ -61,6 +62,9 @@ function StartPicker({ close }) {
   const st = useStore(s => s.S)
   const today = todayISO()
   const sessions = daySessionsStatus(st, today).filter(x => x.routines.length)
+  const scheduled = scheduledWorkoutOf(st, today)
+  const pending = scheduled && !completedScheduledWorkout(st, scheduled)
+  const names = [...sessions.map(s => deriveSessionName(s.routines.map(r => r.name))), ...(pending ? [scheduled.name] : [])]
   const planned = new Set(sessions.flatMap(x => x.ids))
   // Starred routines first (lib/routine-favs.js, #327), each half in Plan's order.
   const others = favRoutinesFirst((st.routines || []).filter(r => !planned.has(r.id)))
@@ -71,14 +75,14 @@ function StartPicker({ close }) {
   return <>
     <h3 style={{ marginBottom: 2 }}>{t('What are we training?')}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>
-      {sessions.length ? t('Today is {0}. Or pick anything else.', sessions.map(nameOf).join(', ')) : t('Rest day, but no one’s stopping you.')}
+      {names.length ? t('Today is {0}. Or pick anything else.', names.join(', ')) : t('Rest day, but no one’s stopping you.')}
     </div>
     {left && <div className="list menu-list" style={{ marginBottom: 14 }}>
       <Row icon="history" iconTint="var(--orange)" title={tn('Start with the {0} exercise you didn’t get to', 'Start with the {0} exercises you didn’t get to', left.ex.length)}
         subtitle={leftFrom(left) + (firstOpen ? ' · ' + t('then {0}', nameOf(firstOpen)) : '')} accessory="chevron"
         onClick={() => { close(); startWithLeftovers(left, firstOpen ? firstOpen.ids : []) }} />
     </div>}
-    {sessions.length > 0 && <>
+    {names.length > 0 && <>
       <h4 className="sec">{t('Today')} · {t(DAYN[new Date(today + 'T12:00:00').getDay()])}</h4>
       <div className="list menu-list start-today" style={{ marginBottom: 14 }}>
         {sessions.map((s, i) => <Row key={s.ids.join('+')} icon={s.done ? 'checkCircle' : glyphOf(s.routines[0].emoji)}
@@ -86,10 +90,12 @@ function StartPicker({ close }) {
           subtitle={s.done ? t('Done today. Again?') : exCount(s.routines.reduce((n, r) => n + (r.ex || []).length, 0))}
           accessory="chevron" className={!s.done && i === sessions.findIndex(x => !x.done) ? 'start-first' : ''}
           onClick={() => go(s.ids)} />)}
+        {pending && <Row icon="dumbbell" title={scheduled.name} subtitle={exCount(scheduled.ex.length)}
+          accessory="chevron" onClick={() => startScheduledWorkout(today, close)} />}
       </div>
     </>}
     {others.length > 0 && <>
-      <h4 className="sec">{sessions.length ? t('Other routines') : t('Your routines')}</h4>
+      <h4 className="sec">{names.length ? t('Other routines') : t('Your routines')}</h4>
       <div className="list menu-list" style={{ marginBottom: 14 }}>
         {others.map(r => <Row key={r.id} icon={glyphOf(r.emoji)} title={isFavRoutine(r) ? <><Icon name="starFill" className="fav-star" />{r.name}</> : r.name} subtitle={exCount((r.ex || []).length)}
           accessory="chevron" onClick={() => go([r.id])} />)}

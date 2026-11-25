@@ -8,6 +8,8 @@ import React, { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { useStore } from '../store/useStore.js'
+import { activitySheet } from '../components/ActivitySheet.jsx'
+import { todayISO } from '../lib/format.js'
 import { startFlow } from '../sheets.jsx'
 import { startPickerSheet } from '../components/StartSheets.jsx'
 import Home from './Home.jsx'
@@ -20,6 +22,7 @@ vi.mock('../sheets.jsx', () => ({
 }))
 
 vi.mock('../components/StartSheets.jsx', () => ({ startPickerSheet: vi.fn(), startOrPreview: vi.fn() }))
+vi.mock('../components/ActivitySheet.jsx', () => ({ activitySheet: vi.fn() }))
 
 const routines = [{ id: 'r1', name: 'Push', emoji: null, ex: [{ id: '0025' }] }]
 
@@ -44,6 +47,31 @@ const setS = (over = {}) => useStore.setState(s => ({
 }))
 const mount = () => act(() => root.render(<Home />))
 const door = () => [...host.querySelectorAll('button')].find(b => b.textContent.includes('Choose a different workout'))
+
+describe('sports on Home', () => {
+  it('offers a planned sport beside the workout and shows the count after recording it', () => {
+    const today = todayISO()
+    const key = new Date().getDay() + ':fight'
+    const sportPlan = { [key]: { on: true, _ts: 1 } }
+    setS({ sportPlan, activities: {} })
+    mount()
+    expect(host.querySelector('.today-row').textContent).toContain('Push')
+    const scheduled = host.querySelector('.home-sport-rows button')
+    expect(scheduled.textContent).toContain('Boxing & martial arts')
+    expect(scheduled.textContent).toContain('Record completion')
+    act(() => scheduled.click())
+    expect(activitySheet).toHaveBeenCalledWith({ day: today, sport: 'fight' })
+    expect(host.textContent).toContain('0 sport sessions total')
+
+    act(() => setS({ sportPlan, activities: { boxing: { d: today, sport: 'fight', min: 45 } } }))
+    const done = host.querySelector('.home-sport-rows button')
+    expect(done.textContent).toContain('Done')
+    expect(host.textContent).toContain('1 sport session total')
+    expect(host.textContent).toContain('Sport streak: 1 week')
+    act(() => done.click())
+    expect(activitySheet).toHaveBeenLastCalledWith({ id: 'boxing' })
+  })
+})
 
 describe('Home — the way to the Start screen when a plan already owns today', () => {
   it('offers the door on a planned day, where the Start button would start the plan', () => {

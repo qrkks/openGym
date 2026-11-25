@@ -102,6 +102,7 @@ describe('missed and moved planned days', () => {
     expect(useUI.getState().sheets).toHaveLength(1)
     expect(wed.getAttribute('aria-pressed')).toBe('true')
     expect(el.querySelector('[data-wk-note]').textContent).toMatch(/Planned, not trained\. No harm done/)
+    expect(el.querySelector('[data-wk-note]').textContent).toContain('Log a freestyle workout')
     act(() => el.querySelector('.wk-note-a').click())
     expect(useUI.getState().sheets.length).toBeGreaterThan(0)
   })

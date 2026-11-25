@@ -2870,7 +2870,11 @@ function ActiveWorkout() {
         <ExerciseBlock entryIdx={cur} onPairPrev={onPairPrev} onPairNext={onPairNext} {...blockProps(cur)} />
       )}
       </SwipeCards>
-    </>) : <div className="empty"><div className="ico"><Icon name="shuffle" /></div>{t('Freestyle workout. Add your first exercise and off you go.')}</div>}
+    </>) : <div className="empty">
+      <div className="ico"><Icon name="shuffle" /></div>
+      {A.backfill ? <Button variant="tinted" icon="plusCircle" onClick={addExercise}>{t('Add exercise')}</Button>
+        : t('Freestyle workout. Add your first exercise and off you go.')}
+    </div>}
 
     <div style={{ height: 12 }} />
     {!listMode && <div className="row">
@@ -2884,10 +2888,10 @@ function ActiveWorkout() {
         under them is the one thing that stands out. Wrapping up is when you know how the session
         went, so the note sits here with the finish rather than in the header. */}
     <div className="sect-b wk-end">
-      <button type="button" className="lrow tap wk-end-row acc" onClick={addExercise}>
+      {(!A.backfill || A.entries.length > 0) && <button type="button" className="lrow tap wk-end-row acc" onClick={addExercise}>
         <Icon name="plusCircle" className="wk-end-i" />
         <span className="lrow-m"><span className="lrow-t">{t('Add exercise')}</span></span>
-      </button>
+      </button>}
       <button type="button" className={'lrow tap wk-end-row' + (A.note ? ' has-note' : '')} onClick={sessionNoteSheet}>
         <Icon name="note" className="wk-end-i" />
         <span className="lrow-m">

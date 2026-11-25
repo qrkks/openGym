@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { sportStatistics, sportTrend } from './sport-statistics.js'
+import { sportProgress, sportStatistics, sportTrend } from './sport-statistics.js'
+import { activitiesOf } from './activities.js'
 
 const today = '2026-03-04'
 const S = {
@@ -18,6 +19,19 @@ const S = {
   week: { 3: 'planned' },
 }
 const summary = (period, opts = {}) => sportStatistics(S, { period, today, weekStart: 1, ...opts })
+
+describe('sport streaks', () => {
+  const activities = activitiesOf(S)
+  it('counts sessions independently of lifting and keeps the current week open', () => {
+    expect(sportProgress(activities, '2026-03-04', 1)).toEqual({ total: 6, weekly: 1, current: 2, best: 2 })
+    expect(sportProgress(activities, '2026-03-04', 1, 'fight')).toEqual({ total: 4, weekly: 0, current: 1, best: 1 })
+    expect(sportProgress(activities, '2026-03-18', 1)).toEqual({ total: 7, weekly: 0, current: 0, best: 2 })
+  })
+  it('uses the selected first day of the week and counts at most one streak week per week', () => {
+    expect(sportProgress(activities, '2026-03-04', 0, 'fight')).toEqual({ total: 4, weekly: 2, current: 2, best: 2 })
+    expect(sportProgress(activities, '2026-03-04', 0, 'swim')).toEqual({ total: 0, weekly: 0, current: 0, best: 0 })
+  })
+})
 
 describe('sport statistics', () => {
   it('counts saved sessions and unique days across sports, leaving plans, lifts and removed records out', () => {

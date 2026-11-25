@@ -1,17 +1,16 @@
 import { useId, useMemo, useState } from 'react'
-import { SPORTS, SPORT_ICON, SPORT_LABEL, activityName } from '../lib/activities.js'
+import { SPORTS, SPORT_ICON, SPORT_LABEL, activitiesOf, activityName } from '../lib/activities.js'
 import { MONTHS, fmtDate, fmtDateRange, fmtDur, fmtNum, todayISO, weekStartOf } from '../lib/format.js'
 import { t, tn } from '../lib/i18n.js'
-import { sportStatistics, sportTrend } from '../lib/sport-statistics.js'
-import DateField from './DateField.jsx'
+import { sportProgress, sportStatistics, sportTrend } from '../lib/sport-statistics.js'
+import SessionStatsPeriod from './SessionStatsPeriod.jsx'
 import { Button, Row, Segmented, SelectRow } from './ui.jsx'
 import './sport-statistics.css'
 
-const PERIODS = { all: 'All dates', week: 'This week', month: 'This month', year: 'This year', custom: 'Custom' }
 const TREND_PAGE = 6
 const HISTORY_PAGE = 10
 const duration = min => fmtDur(min * 60000)
-const sessions = n => tn('{0} session', '{0} sessions', n)
+const sessions = n => tn('{0} sport session', '{0} sport sessions', n)
 
 function SportTrend({ buckets, grouping }) {
   const [offset, setOffset] = useState(0)
@@ -22,7 +21,7 @@ function SportTrend({ buckets, grouping }) {
   if (!visible.length) return null
 
   return <>
-    <ol className="sport-trend" role="list" aria-label={t('Sessions')}>
+    <ol className="sport-trend" role="list" aria-label={t('Sport sessions')}>
       {visible.map(b => <li key={b.key}>
         <span className="vh">{fmtDateRange(b.from, b.to)} · {sessions(b.n)}</span>
         <div className="sport-trend-visual" aria-hidden="true">
@@ -61,11 +60,11 @@ function SportHistory({ history }) {
   </>
 }
 
-export default function SportStatistics({ activities, weekStart }) {
+export default function SportStatistics({ activities, weekStart, initialPeriod = 'all' }) {
   const id = useId()
   const today = todayISO()
   const [sport, setSport] = useState('')
-  const [period, setPeriod] = useState('all')
+  const [period, setPeriod] = useState(initialPeriod)
   const [group, setGroup] = useState('')
   const [from, setFrom] = useState(() => today.slice(0, 7) + '-01')
   const [to, setTo] = useState(today)
@@ -73,30 +72,33 @@ export default function SportStatistics({ activities, weekStart }) {
   const ws = weekStartOf({ weekStart })
   const stats = useMemo(() => sportStatistics({ activities }, { period, today, from, to, sport, weekStart: ws }),
     [activities, period, today, from, to, sport, ws])
+  const saved = useMemo(() => activitiesOf({ activities }), [activities])
+  const streak = useMemo(() => sportProgress(saved, today, ws, sport), [saved, today, ws, sport])
   const buckets = useMemo(() => stats.n ? sportTrend(stats, grouping, ws) : [], [stats, grouping, ws])
   const filterKey = [period, stats.from, stats.to, sport, ws].join('/')
   const title = t('Sport Statistics')
 
-  return <section className="card sport-stats" aria-labelledby={id} id="sport-statistics">
+  return <section className="card session-stats sport-stats" aria-labelledby={id} id="sport-statistics" tabIndex={-1}>
     <h2 id={id}>{title}</h2>
-    <div className="sport-stats-filters">
+    <div className="session-stats-filters">
       <SelectRow title={t('Sport')} value={sport} onChange={setSport}
         options={[{ value: '', label: t('All sports') }, ...SPORTS.map(s => ({ value: s, label: t(SPORT_LABEL[s]) }))]} />
-      <SelectRow title={t('Period')} value={period} onChange={p => { setPeriod(p); setGroup('') }}
-        options={Object.entries(PERIODS).map(([value, label]) => ({ value, label: t(label) }))} />
-      {period === 'custom' && <>
-        <Row title={t('From')}><DateField compact value={from} max={to} onChange={setFrom} label={t('From')} /></Row>
-        <Row title={t('To')}><DateField compact value={to} min={from} max={today} onChange={setTo} label={t('To')} /></Row>
-      </>}
+      <div className="sport-streak" aria-live="polite">
+        <strong>{tn('Sport streak: {0} week', 'Sport streak: {0} weeks', streak.current)}</strong>
+        <span className="small muted">{tn('Best: {0} week', 'Best: {0} weeks', streak.best)}</span>
+        <span className="small muted">{t('At least one logged session each week. The current week stays open until it ends.')}</span>
+      </div>
+      <SessionStatsPeriod period={period} onPeriod={p => { setPeriod(p); setGroup('') }}
+        today={today} from={from} to={to} onFrom={setFrom} onTo={setTo} />
     </div>
-    <dl className="sport-stats-totals" aria-live="polite">
-      <div><dt>{t('Sessions')}</dt><dd>{fmtNum(stats.n)}</dd></div>
+    <dl className="session-stats-totals" aria-live="polite">
+      <div><dt>{t('Sport sessions')}</dt><dd>{fmtNum(stats.n)}</dd></div>
       <div><dt>{t('Duration')}</dt><dd>{duration(stats.min)}</dd></div>
-      <div><dt>{t('Training days')}</dt><dd>{fmtNum(stats.days)}</dd></div>
+      <div><dt>{t('Sport days')}</dt><dd>{fmtNum(stats.days)}</dd></div>
     </dl>
 
     {stats.n > 0 && <div className="sport-trend-section">
-      <h3 id={id + '-trend'}>{t('Sessions')}</h3>
+      <h3 id={id + '-trend'}>{t('Sport sessions')}</h3>
       <Segmented ariaLabelledby={id + '-trend'} value={grouping} onChange={setGroup} options={[
         { value: 'week', label: t('Weekly') }, { value: 'month', label: t('Monthly') },
       ]} />
@@ -113,7 +115,7 @@ export default function SportStatistics({ activities, weekStart }) {
       </ul>
     </div>}
 
-    <div className="sport-stats-history">
+    <div className="session-stats-history">
       <h3>{t('History')}{sport && ' · ' + t(SPORT_LABEL[sport])}</h3>
       {stats.history.length ? <SportHistory key={filterKey} history={stats.history} />
         : <p className="small muted" role="status">{t('No sport activities in this period')}</p>}

@@ -34,6 +34,23 @@ describe('Calendar canonical workout days', () => {
     useStore.setState({ S: original })
   })
 
+  it('shows recovery and sport marks beside the workout on the same date', () => {
+    const day = todayISO()
+    const start = new Date(day + 'T08:00:00').getTime()
+    useStore.setState({ S: {
+      ...original,
+      workouts: [{ id: 'lift', d: day, start, end: start + 1200000, name: 'Lift', entries: [] }],
+      activities: { ride: { d: day, sport: 'ride', min: 30 } },
+      recoverySessions: { stretch: { d: day, kind: 'stretch', min: 15 } },
+    } })
+    calendarSheet(day)
+    const cell = renderTop().querySelector('.cal-d.today')
+    expect(cell.querySelector('i.done')).toBeTruthy()
+    expect(cell.querySelector('.sport-mark.done')).toBeTruthy()
+    expect(cell.querySelector('.recovery-mark.done')).toBeTruthy()
+    expect(cell.getAttribute('aria-label')).toContain('Recovery logged')
+  })
+
   it('keeps multiple legacy sessions on the heatmap fallback day clickable in Calendar', () => {
     const day = todayISO()
     const start = new Date(day + 'T09:00:00').getTime()
@@ -55,5 +72,11 @@ describe('Calendar canonical workout days', () => {
     const sessions = renderTop()
     expect(sessions.textContent).toContain('Legacy A')
     expect(sessions.textContent).toContain('Legacy B')
+    const log = [...sessions.querySelectorAll('button')].find(b => b.textContent === 'Log a freestyle workout')
+    expect(log).toBeTruthy()
+    act(() => log.click())
+    const form = renderTop()
+    expect(form.querySelector('[data-datefield]').value).toBe(day)
+    expect(form.textContent).toContain('Choose any exercises when you continue.')
   })
 })

@@ -27,12 +27,12 @@ function install(n) {
 }
 
 const roots = []
-function mount(History) {
+function mount(History, path = '/history') {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const root = createRoot(host)
   roots.push(root)
-  act(() => root.render(<MemoryRouter><History /></MemoryRouter>))
+  act(() => root.render(<MemoryRouter initialEntries={[path]}><History /></MemoryRouter>))
   return host
 }
 const rows = host => host.querySelectorAll('.list .item').length
@@ -51,6 +51,7 @@ describe('History grows as it is scrolled', () => {
     for (const r of roots.splice(0)) act(() => r.unmount())
     document.body.innerHTML = ''
     delete window.IntersectionObserver
+    vi.useRealTimers()
   })
 
   it('renders the first page, then a page more each time its end comes into reach, newest first', async () => {
@@ -82,6 +83,58 @@ describe('History grows as it is scrolled', () => {
     const host = mount(History)
     expect(rows(host)).toBe(12)
     expect(observers).toHaveLength(0)
+  })
+
+  it('opens from Stats with the current month and strength training selected', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2025, 1, 2, 12))
+    install(34)
+    useStore.setState(({ S }) => ({
+      S: {
+        ...S,
+        workouts: S.workouts.map((w, i) => i === 31 ? { ...w, d: undefined, start: new Date(2025, 1, 1, 12).getTime() } : w),
+        activities: { ride: { d: '2025-02-01', sport: 'ride', min: 25 } },
+        recoverySessions: { massage: { d: '2025-02-02', kind: 'massage', min: 20 } },
+      },
+    }))
+    const host = mount(History, '/history?filter=strength&period=month')
+    expect([...host.querySelectorAll('.list .item .tt')].map(el => el.textContent)).toEqual(['Push 32', 'Push 31'])
+    expect(host.querySelector('.hdr .sub').textContent.trim()).toBe('2 workouts')
+    const period = [...host.querySelectorAll('button.lrow')].find(b => b.querySelector('.lrow-t')?.textContent === 'Period')
+    expect(period.querySelector('.lrow-v').textContent).toBe('This month')
+    expect(host.querySelector('.list').textContent).not.toContain('Invalid Date')
+  })
+
+  it('shows sport totals and filters history down to a selected sport', async () => {
+    install(1)
+    useStore.setState(({ S }) => ({ S: { ...S, activities: {
+      boxing: { d: day(1), sport: 'fight', min: 45 },
+      cycling: { d: day(2), sport: 'ride', min: 30 },
+    } } }))
+    const host = mount(History)
+    expect(host.querySelector('.hdr .sub').textContent).toContain('2 sport sessions total')
+    const sportTab = [...host.querySelectorAll('.history-filter button')].find(b => b.textContent === 'Sport')
+    act(() => sportTab.click())
+    expect(rows(host)).toBe(2)
+    expect(host.querySelector('[data-activity="boxing"]')).toBeTruthy()
+
+    const [{ useUI }, { bindUI }] = await Promise.all([
+      import('../store/useUI.js'),
+      import('../components/ui.jsx'),
+    ])
+    bindUI(useUI)
+    const sportPicker = [...host.querySelectorAll('button.lrow')].find(b => b.textContent.includes('All sports'))
+    act(() => sportPicker.click())
+    const sheet = useUI.getState().sheets.at(-1)
+    const picker = document.createElement('div')
+    host.appendChild(picker)
+    const root = createRoot(picker)
+    roots.push(root)
+    act(() => root.render(sheet.render(() => useUI.getState().closeSheet(sheet.id))))
+    const boxing = [...picker.querySelectorAll('button')].find(b => b.textContent === 'Boxing & martial arts')
+    act(() => boxing.click())
+    expect(rows(host)).toBe(1)
+    expect(host.querySelector('[data-activity="boxing"]')).toBeTruthy()
   })
 
   it('without IntersectionObserver the whole list renders, as before', async () => {

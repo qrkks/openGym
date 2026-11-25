@@ -17,13 +17,14 @@ import { Button, Stepper } from './ui.jsx'
 // what it was and how long, the day and a note if you like. Opened from History, a day in the
 // calendar and the journal; an existing one opens here to edit or remove.
 
-function RecoveryLog({ id = null, day = null, close }) {
+function RecoveryLog({ id = null, day = null, initialKind = null, close }) {
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
   const toast = useUI(s => s.toast)
   const had = id ? recoverySessionsOf(S).find(r => r.id === id) : null
-  const [kind, setKind] = useState(had?.kind || 'sauna')
-  const [min, setMin] = useState(had?.min || RECOVERY_PRESETS[had?.kind || 'sauna'][1])
+  const [recordId] = useState(() => id || uid())
+  const [kind, setKind] = useState(had?.kind || initialKind || 'sauna')
+  const [min, setMin] = useState(had?.min || RECOVERY_PRESETS[kind][1])
   const [d, setD] = useState(had?.d || day || todayISO())
   const [note, setNote] = useState(had?.note || '')
   const noteRef = useRef(null)
@@ -35,7 +36,7 @@ function RecoveryLog({ id = null, day = null, close }) {
   }
   const save = () => {
     if (!(min >= 1) || d > todayISO()) return
-    update(s => { s.recoverySessions = withRecovery(s.recoverySessions, id || uid(), { d, kind, min, note: note.trim().slice(0, NOTE_MAX) }) })
+    update(s => { s.recoverySessions = withRecovery(s.recoverySessions, recordId, { d, kind, min, note: note.trim().slice(0, NOTE_MAX) }) })
     close()
     toast(had ? t('Saved') : t('{0} logged. Your muscles say thanks.', t(RECOVERY_LABEL[kind])))
   }
@@ -70,9 +71,9 @@ function RecoveryLog({ id = null, day = null, close }) {
   </>
 }
 
-/** Log a new recovery session (on `day`, else today), or edit the one with `id`. */
-export const recoverySheet = ({ id = null, day = null } = {}) =>
-  useUI.getState().openSheet(close => <RecoveryLog id={id} day={day} close={close} />)
+/** Log a recovery session with optional date and kind defaults, or edit an existing record. */
+export const recoverySheet = ({ id = null, day = null, kind = null } = {}) =>
+  useUI.getState().openSheet(close => <RecoveryLog id={id} day={day} initialKind={kind} close={close} />)
 
 /** One session as a list row, the way History lists a workout. */
 export function RecoveryRow({ r, showDate = true }) {

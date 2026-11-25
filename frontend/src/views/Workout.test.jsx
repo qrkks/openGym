@@ -621,6 +621,14 @@ describe('set ticks for screen readers', () => {
 })
 
 describe('Workout add exercise flow', () => {
+  it('offers the first exercise directly in an empty past freestyle workout', async () => {
+    await mount([], 0, { active: { name: 'Freestyle', d: '2026-09-14', backfill: { durationMin: 45 } } })
+    expect(container.querySelector('.empty button').textContent.trim()).toBe('Add exercise')
+    await addExerciseThroughSheets({ id: '0025' }, { mode: 'reps', sets: 2, reps: 8, weight: 40 })
+    expect(mocks.S.active.d).toBe('2026-09-14')
+    expect(mocks.S.active.entries[0]).toMatchObject({ id: '0025', sets: [{ w: 40, r: 8 }, { w: 40, r: 8 }] })
+  })
+
   it.each([
     ['freestyle', {}],
     ['planned', {

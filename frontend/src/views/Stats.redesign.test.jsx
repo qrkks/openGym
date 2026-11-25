@@ -71,7 +71,7 @@ describe('Stats redesign: Overview', () => {
     mount(Object.assign(clone(DEF), buildDemoState()))
     const overview = card('#stats-overview')
     const kpis = overview.querySelector('[data-tour="stats-tiles"]')
-    expect([...kpis.querySelectorAll('.tile .l')].map(l => l.textContent)).toEqual(['Workouts', 'This month', 'Weight 30d', 'Lifted in total'])
+    expect([...kpis.querySelectorAll('.tile .l')].map(l => l.textContent)).toEqual(['Workouts', 'Weight 30d', 'Lifted in total'])
     expect(host.textContent.match(/Week streak/g)).toHaveLength(1)
     expect(host.querySelectorAll('[data-streak-card]')).toHaveLength(1)
     const fold = overview.querySelector('[data-challenge-shelf] .card-fold')
@@ -80,6 +80,58 @@ describe('Stats redesign: Overview', () => {
     const all = btn(overview, `All ${mocks.S.workouts.length}`)
     click(all)
     expect(mocks.nav).toHaveBeenCalledWith('/history')
+  })
+
+  it('counts saved sessions this month and opens each matching detail', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 25, 12))
+    const legacy = done('2026-11-23', 'chest', 2)
+    delete legacy.d
+    legacy.excludeFromProgression = true
+    mount(small({
+      workouts: [done('2026-10-31', 'chest', 2), legacy, done('2026-11-26', 'chest', 2)],
+      activities: {
+        boxing: { d: '2026-11-24', sport: 'fight', min: 35 },
+        previous: { d: '2026-10-30', sport: 'run', min: 30 },
+        future: { d: '2026-11-27', sport: 'run', min: 20 },
+      },
+      recoverySessions: {
+        first: { d: '2026-11-25', kind: 'stretch', min: 10, note: 'Shoulder mobility' },
+        second: { d: '2026-11-25', kind: 'massage', min: 15 },
+        previous: { d: '2026-10-31', kind: 'sauna', min: 30 },
+        future: { d: '2026-11-26', kind: 'stretch', min: 20 },
+        removed: { _ts: 2026 },
+      },
+      datedActivityPlan: {
+        '2026-11-25:sport:ride': { on: true, _ts: 2026 },
+        '2026-11-25:recovery:walk': { on: true, _ts: 2026 },
+      },
+      scheduledWorkouts: { '2026-11-25': { id: 'planned', ex: [{ id: 'press', sets: 12 }] } },
+    }))
+    const tiles = [...card('.kpis-month').querySelectorAll('button')]
+    expect(tiles.map(b => [b.querySelector('.l').textContent, b.querySelector('.v').textContent]))
+      .toEqual([['Strength training', '1'], ['Sport', '1'], ['Recovery', '2']])
+    click(tiles[0])
+    expect(mocks.nav).toHaveBeenCalledWith('/history?filter=strength&period=month')
+
+    click(tiles[1])
+    const sport = card('#sport-statistics')
+    expect(sport.querySelector('.session-stats-filters').textContent).toContain('This month')
+    expect(sport.querySelector('.session-stats-totals dd').textContent).toBe('1')
+
+    const recovery = () => card('#recovery-statistics')
+    pickFrom(recovery(), 'Recovery type', 'Sauna')
+    click(tiles[2])
+    expect(recovery().querySelector('.session-stats-filters').textContent).toContain('This month')
+    const totals = () => [...recovery().querySelectorAll('dd')].map(d => d.textContent)
+    expect(totals()).toEqual(['2', '25 min', '1'])
+    expect(recovery().textContent).toContain('Shoulder mobility')
+    expect(recovery().textContent).not.toContain('Sauna')
+    pickFrom(recovery(), 'Recovery type', 'Massage')
+    expect(totals()).toEqual(['1', '15 min', '1'])
+    pickFrom(recovery(), 'Period', 'Custom')
+    expect([...recovery().querySelectorAll('[data-datefield]')].map(b => b.value)).toEqual(['2026-11-01', '2026-11-25'])
+    expect(host.textContent).toContain('Workout heatmap (last 12 months)')
   })
 
   it('offers Progress photos before the first workout, so the first photo can be taken', () => {

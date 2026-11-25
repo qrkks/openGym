@@ -1,16 +1,49 @@
 import { activitiesOf, activityTotals } from './activities.js'
 import { isoOf, weekKey } from './format.js'
+import { sessionStatsRange } from './session-stats-period.js'
+
+const previousWeek = key => {
+  const day = new Date(key + 'T12:00:00')
+  day.setDate(day.getDate() - 7)
+  return isoOf(day)
+}
+
+/** Consecutive weeks with at least one saved activity. The current week stays open until it ends. */
+export function sportProgress(activities, today, weekStart, sport = '') {
+  const thisWeek = weekKey(today, weekStart)
+  const weeks = new Set()
+  let total = 0
+  let weekly = 0
+  for (const a of activities) {
+    if (a.d > today || (sport && a.sport !== sport)) continue
+    const key = weekKey(a.d, weekStart)
+    if (key > thisWeek) continue
+    weeks.add(key)
+    total++
+    if (key === thisWeek) weekly++
+  }
+
+  let currentWeek = weeks.has(thisWeek) ? thisWeek : previousWeek(thisWeek)
+  let previous = null
+  let run = 0
+  let best = 0
+  let current = 0
+  for (const key of [...weeks].sort().reverse()) {
+    run = key === previous ? run + 1 : 1
+    best = Math.max(best, run)
+    previous = previousWeek(key)
+    if (key === currentWeek) {
+      current++
+      currentWeek = previous
+    }
+  }
+  return { total, weekly, current, best }
+}
 
 export function sportStatistics(S, { period, today, from, to, sport, weekStart }) {
   const saved = activitiesOf(S)
   const oldest = saved[saved.length - 1]?.d
-  const starts = {
-    all: oldest && oldest < today ? oldest : today,
-    week: weekKey(today, weekStart),
-    month: today.slice(0, 7) + '-01',
-    year: today.slice(0, 4) + '-01-01',
-  }
-  const window = period === 'custom' ? { from, to } : { from: starts[period], to: today }
+  const window = sessionStatsRange({ period, today, from, to, oldest, weekStart })
   const totals = activityTotals(S, window.from, window.to)
   const history = saved.filter(a => a.d >= window.from && a.d <= window.to && (!sport || a.sport === sport))
   const selected = sport ? totals.sports.find(s => s.sport === sport) : totals

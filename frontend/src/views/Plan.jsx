@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
-import { DAYN, DAYS, weekOrder, weekStartOf, uid, exCount, routineCount, todayISO, fmtDate } from '../lib/format.js'
+import { DAYN, DAYS, weekOrder, weekStartOf, weekDayOffset, startOfWeek, isoOf, uid, exCount, routineCount, todayISO, fmtDate } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import { nameIn, said } from '../lib/a11y-name.js'
 import {
@@ -36,6 +36,8 @@ import { groupRoutines, folderOpen, setFolderOpen, folderOf } from '../lib/routi
 import { isFavRoutine } from '../lib/routine-favs.js'
 import { routineFromWorkoutSheet } from '../components/RoutineFromWorkout.jsx'
 import { routineSources } from '../lib/session-routines.js'
+import { activitiesOf, SPORT_ICON, SPORT_LABEL } from '../lib/activities.js'
+import { sportsOnWeekday } from '../lib/sport-plan.js'
 
 // Plan has two views (v1.3.11): Schedule (how you train, and when) and Routines (what you
 // train). The last one you looked at comes back: a per-device convenience, never synced, so it
@@ -213,6 +215,7 @@ function newRoutine(update, nav) {
 
 function Schedule({ S, update, nav, mode }) {
   const [editLoop, setEditLoop] = useState(false)
+  const [editFixedDays, setEditFixedDays] = useState(false)
   /* The rotation editor. What it shows is the live pass when there is one, otherwise the saved
      sequence — S.rotation is only a definition, so the pass is the truth whenever it exists.
      Every edit writes straight through saveRotation: an edit IS the save (and, for a queue
@@ -292,19 +295,39 @@ function Schedule({ S, update, nav, mode }) {
   })
 
   const ws = weekStartOf(S)
-  const todayDow = new Date().getDay()
+  const today = todayISO()
+  const todayDow = new Date(today + 'T12:00:00').getDay()
+  const weekStart = startOfWeek(today, ws)
+  const first = isoOf(weekStart)
+  const loggedSports = new Set(activitiesOf(S).filter(a => a.d >= first && a.d <= today).map(a => a.d + ':' + a.sport))
+  const loggedRoutines = new Set((S.workouts || []).filter(w => w.d >= first && w.d <= today)
+    .flatMap(w => (Array.isArray(w.routineIds) ? w.routineIds : [w.routineId]).map(id => w.d + ':' + id)))
   const routineOf = id => S.routines.find(x => x.id === id)
   const dayRoutines = d => [].concat(S.week[d] || []).map(routineOf).filter(Boolean)
   // One weekday: what is on it at a glance, and a tap to change it (dayAssignSheet picks one
   // routine, several for a combined day, or a rest day).
   const dayRow = (d, rs = dayRoutines(d)) => {
-    return <div key={d} className="item plan-day" data-day={d} aria-label={t(DAYN[d])} {...tappable(() => dayAssignSheet(d))}>
+    const sports = sportsOnWeekday(S, d)
+    const date = new Date(weekStart)
+    date.setDate(weekStart.getDate() + weekDayOffset(d, ws))
+    const iso = isoOf(date)
+    const title = rs.length ? deriveSessionName(rs.map(r => r.name)) : t(sports.length ? 'Sport' : 'Rest day')
+    const strengthDone = rs.length > 0 && rs.every(r => loggedRoutines.has(iso + ':' + r.id))
+    const items = sports.map(sport => ({ sport, name: t(SPORT_LABEL[sport]), done: loggedSports.has(iso + ':' + sport) }))
+    const withStatus = (name, done) => done ? name + ' · ' + t('Done') : name
+    const label = [t(DAYN[d]), ...(strengthDone || (sports.length && rs.length) ? [withStatus(title, strengthDone)] : []),
+      ...items.map(({ name, done }) => withStatus(name, done))].join(', ')
+    return <div key={d} className="item plan-day" data-day={d} aria-label={label} {...tappable(() => dayAssignSheet(d))}>
       <span className={'plan-day-n' + (d === todayDow ? ' today' : '')} aria-hidden="true">{t(DAYS[d])}</span>
-      <span className={'lrow-i' + (rs.length ? '' : ' rest')}><Icon name={rs.length ? glyphOf(rs[0].emoji) : 'moon'} /></span>
+      <span className={'lrow-i' + (rs.length || sports.length ? '' : ' rest')}><Icon name={rs.length ? glyphOf(rs[0].emoji) : sports.length ? SPORT_ICON[sports[0]] : 'moon'} /></span>
       <div className="grow">
-        <div className="tt">{rs.length ? deriveSessionName(rs.map(r => r.name)) : t('Rest day')}</div>
-        <div className="ss">{rs.length === 1 ? exCount(rs[0].ex.length) : rs.length ? routineCount(rs.length) : t('Tap to plan something')}</div>
+        <div className="tt">{title}</div>
+        {rs.length > 0 || !sports.length ? <div className="ss">{rs.length === 1 ? exCount(rs[0].ex.length) : rs.length ? routineCount(rs.length) : t('Tap to plan something')}</div> : null}
+        {items.map(({ sport, name, done }) => <span key={sport} className="plan-sport" data-sport={sport} data-done={done}>
+          <Icon name={done ? 'check' : SPORT_ICON[sport]} /><span>{name}</span>
+        </span>)}
       </div>
+      {strengthDone && <span className="tag" style={{ color: 'var(--green)' }}>{t('Done')}</span>}
       {rs.length > 0 && <MiniBodyMap routines={rs} body={S.body} tour="plan-body" />}
       <Icon name="chevronRight" className="chev" />
     </div>
@@ -312,7 +335,7 @@ function Schedule({ S, update, nav, mode }) {
   // Beside a loop, a weekday shows only what it adds to it: a routine that is in the loop already
   // is the loop's session, the same rule Home follows (effectiveRoutineIds, history.js).
   const extraRoutines = d => dayRoutines(d).filter(r => !seq.includes(r.id))
-  const plannedDays = weekOrder(ws).filter(d => extraRoutines(d).length)
+  const fixedDays = weekOrder(ws).filter(d => editFixedDays || extraRoutines(d).length || sportsOnWeekday(S, d).length)
   const doneCount = qv ? qv.items.filter(i => i.state === 'done').length : 0
   const stateWord = item => item.state === 'pinned' ? fmtDate(item.on, true)
     : { done: t('Done'), next: t('Up next'), later: t('Later') }[item.state]
@@ -414,11 +437,12 @@ function Schedule({ S, update, nav, mode }) {
       {/* The weekday routines ride along beside a loop (effectiveRoutineIds, history.js) and feed
           the same tally (weekTally, queue.js), so the days that still add one stay in sight; a
           day whose only routines are in the loop already adds nothing and is left out. */}
-      {plannedDays.length > 0 && <>
+      {fixedDays.length > 0 && <>
         <h4 className="sec">{t('Also on fixed days')}</h4>
-        <div className="list plan-week">{plannedDays.map(d => dayRow(d, extraRoutines(d)))}</div>
-        <p className="sect-f">{t('These count on top of the loop. Tap a day to change or clear it.')}</p>
+        <div className="list plan-week">{fixedDays.map(d => dayRow(d, extraRoutines(d)))}</div>
       </>}
+      <Button size="sm" variant="ghost" icon="calendar" aria-expanded={editFixedDays}
+        onClick={() => setEditFixedDays(v => !v)}>{t(editFixedDays ? 'Hide empty weekdays' : 'Edit fixed days')}</Button>
     </div>}
 
     {/* Weekly muscle volume is analysis: it moved to Stats, next to Muscle balance. Stats only

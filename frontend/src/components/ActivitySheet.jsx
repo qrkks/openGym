@@ -25,12 +25,13 @@ const SOURCE_LINE = {
 const MI = 1.609344
 export const distText = (S, km) => (S?.unit === 'lb' ? t('{0} mi', fmtNum(Math.round(km / MI * 10) / 10)) : t('{0} km', fmtNum(Math.round(km * 10) / 10)))
 
-function ActivityLog({ id = null, day = null, close }) {
+function ActivityLog({ id = null, day = null, initialSport = null, close }) {
   const S = useStore(s => s.S)
   const update = useStore(s => s.update)
   const toast = useUI(s => s.toast)
   const had = id ? activitiesOf(S).find(a => a.id === id) : null
-  const [sport, setSport] = useState(had?.sport || 'run')
+  const [recordId] = useState(() => id || 'm' + uid())
+  const [sport, setSport] = useState(had?.sport || initialSport || 'run')
   const [min, setMin] = useState(had?.min || SPORT_PRESETS[1])
   const [d, setD] = useState(had?.d || day || todayISO())
   const [note, setNote] = useState(had?.note || '')
@@ -38,9 +39,9 @@ function ActivityLog({ id = null, day = null, close }) {
   const onNoteFocus = useSheetKeyboard(noteRef)
   const save = () => {
     if (!(min >= 1) || d > todayISO()) return
-    update(s => { s.activities = withActivity(s.activities, id || 'm' + uid(), { ...(had || {}), d, sport, min, note: note.trim().slice(0, NOTE_MAX), src: had?.src || 'manual' }) })
+    update(s => { s.activities = withActivity(s.activities, recordId, { ...(had || {}), d, sport, min, note: note.trim().slice(0, NOTE_MAX), src: had?.src || 'manual' }) })
     close()
-    toast(had ? t('Saved') : t('{0} logged. Your legs have opinions.', t(SPORT_LABEL[sport])))
+    toast(t('Saved'))
   }
   const remove = () => {
     update(s => { s.activities = withActivity(s.activities, id, null) })
@@ -49,10 +50,7 @@ function ActivityLog({ id = null, day = null, close }) {
   }
   return <>
     <h3>{had ? t('Edit activity') : t('Log an activity')}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>
-      {had && SOURCE_LINE[had.src] ? t(SOURCE_LINE[had.src]) + '. ' : ''}
-      {t('Sport outside the gym. It shows in your history and calendar and tires the muscles it used, but adds no sets.')}
-    </div>
+    {had && SOURCE_LINE[had.src] && <div className="muted small" style={{ marginBottom: 12 }}>{t(SOURCE_LINE[had.src])}</div>}
     <div className="chips rec-kinds" role="radiogroup" aria-label={t('Sport')} style={{ margin: '0 0 12px', flexWrap: 'wrap' }}>
       {SPORTS.map(k => <button key={k} type="button" role="radio" aria-checked={sport === k}
         className={'chip nocap ichip' + (sport === k ? ' on' : '')} onClick={() => setSport(k)}>
@@ -76,9 +74,9 @@ function ActivityLog({ id = null, day = null, close }) {
   </>
 }
 
-/** Log a new activity (on `day`, else today), or open the one with `id`. */
-export const activitySheet = ({ id = null, day = null } = {}) =>
-  useUI.getState().openSheet(close => <ActivityLog id={id} day={day} close={close} />)
+/** Log a new activity with optional date and sport defaults, or open an existing record. */
+export const activitySheet = ({ id = null, day = null, sport = null } = {}) =>
+  useUI.getState().openSheet(close => <ActivityLog id={id} day={day} initialSport={sport} close={close} />)
 
 /** One activity as a list row, the way History lists a workout. */
 export function ActivityRow({ a, showDate = true }) {

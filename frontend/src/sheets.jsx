@@ -127,10 +127,13 @@ import ShareWorkout from './components/ShareWorkout.jsx'
 import { streakInfo } from './lib/streak.js'
 import { streakWeeks } from './lib/streak-explain.js'
 import { gymNoteText, withGymNote } from './lib/journal.js'
-import { recoveryDays, recoveryOn } from './lib/recovery-sessions.js'
+import { recoveryDays, recoveryOn, RECOVERY_KINDS, RECOVERY_ICON, RECOVERY_LABEL } from './lib/recovery-sessions.js'
 import { recoverySheet, RecoveryRow } from './components/RecoverySheet.jsx'
-import { activityDays, activitiesOn } from './lib/activities.js'
+import { activityDays, activitiesOn, SPORT_ICON, SPORT_LABEL, SPORTS } from './lib/activities.js'
 import { activitySheet, ActivityRow } from './components/ActivitySheet.jsx'
+import { sportsOnWeekday, withPlannedSport } from './lib/sport-plan.js'
+import { datedActivitiesOn, plannedSportsOn, withDatedActivity } from './lib/dated-activity-plan.js'
+import { scheduledWorkoutOf, completedScheduledWorkout, withScheduledWorkout } from './lib/scheduled-workouts.js'
 import { StreakSummary, StreakLegend, WeekMark, WeekNote } from './components/StreakCalendar.jsx'
 import { copyText } from './lib/clipboard.js'
 import { queueRemaining, pinState } from './lib/queue.js'
@@ -3376,6 +3379,10 @@ function PlanImport({ bundle, close }) {
 /* ============================ day override / assign ============================ */
 function DayOverride({ iso, close }) {
   const st = useStore(s => s.S)
+  const today = todayISO()
+  const workouts = workoutsOn(st, iso)
+  const scheduled = scheduledWorkoutOf(st, iso)
+  const scheduledDone = completedScheduledWorkout(st, scheduled)
   const hasOvr = st.dayPlan[iso] !== undefined
   // A fulfilled pin (a coach session pinned here and since done) reads as no override, as it does
   // everywhere else — the row to clear the leftover entry stays.
@@ -3391,14 +3398,17 @@ function DayOverride({ iso, close }) {
   // A planned day in the past with nothing logged was missed — or trained and never logged,
   // like a run you forgot to start the app for (#284). Logging it opens "Log a past workout" on
   // that date with the day's routines picked, where the time and the duration can still change.
-  const missed = iso < todayISO() && effIds.length > 0 && !workoutsOn(st, iso).length
+  const missed = iso < today && effIds.length > 0 && !workouts.length
   const logIt = () => { close(); logPastWorkoutSheet({ iso, routineIds: effIds }) }
+  const logFreestyle = () => { close(); logPastWorkoutSheet({ iso }) }
   // A note on a day off (#261, lib/day-notes.js): offered on today and past days with nothing
   // logged, kept in view on any day that already has one. Quiet on purpose: a row, not a button.
   const note = dayNoteOf(st, iso)
   const recs = recoveryOn(st, iso)
   const acts = activitiesOn(st, iso)
-  const canNote = !!note || (canNoteDay(iso) && !workoutsOn(st, iso).length)
+  const pendingSports = plannedSportsOn(st, iso).filter(sport => !acts.some(a => a.sport === sport))
+  const pendingRecovery = datedActivitiesOn(st, iso, 'recovery').filter(kind => !recs.some(r => r.kind === kind))
+  const canNote = !!note || (canNoteDay(iso) && !workouts.length)
   // The coach week's sessions still to do come first, in slot order: picking one here pins it
   // to this day — the same per-date override, read back by queueNext (lib/queue.js). A session
   // already pinned to another day says so in place of its exercise count. Done sessions and
@@ -3423,7 +3433,24 @@ function DayOverride({ iso, close }) {
   return <>
     <h3>{fmtDate(iso, true)}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>{t('Weekly plan:')} {weeklyNames.length ? deriveSessionName(weeklyNames) : t('Rest')}{changed && <span style={{ color: 'var(--orange-ink)' }}> · {t('changed for this day')}</span>}<br />{t('Sick, missed a day or want a different session? Pick what to train instead.')}</div>
-    {missed && <div style={{ marginBottom: 14 }}><Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button></div>}
+    {iso <= today && <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+      {missed && <Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button>}
+      <Button variant={missed ? 'tinted' : 'primary'} icon="shuffle" onClick={logFreestyle}>{t('Log a freestyle workout')}</Button>
+    </div>}
+    {(scheduled || iso >= today) && <div className="list" style={{ marginBottom: 14 }}>
+      {scheduled && <Row icon="dumbbell" title={scheduled.name} subtitle={exCount(scheduled.ex.length)}
+        accessory="chevron" value={scheduledDone ? t('Done') : undefined} onClick={() => scheduledWorkoutSheet(iso)} />}
+      {!scheduled && <Button variant="tinted" icon="plus" onClick={() => scheduledWorkoutSheet(iso)}>{t('Schedule a one-off workout')}</Button>}
+      {scheduled && !scheduledDone && iso === today && <Button icon="play" variant="tinted"
+        onClick={() => startScheduledWorkout(iso, close)}>{t('Start workout')}</Button>}
+      {iso >= today && <>
+        <Button variant="tinted" icon="figureRun" onClick={() => datedActivitySheet(iso, 'sport')}>{t('Schedule sport')}</Button>
+        <Button variant="tinted" icon="sparkles" onClick={() => datedActivitySheet(iso, 'recovery')}>{t('Schedule recovery')}</Button>
+      </>}
+    </div>}
+    {workouts.length > 0 && <div className="list" style={{ marginBottom: 14 }}>
+      {workouts.map(w => <WorkoutRow key={w.id} w={w} onClick={() => { close(); workoutDetailSheet(w) }} />)}
+    </div>}
     {canNote && <div className="day-note" style={{ marginBottom: 14 }}>
       <div className="item day-note-row" {...tappable(() => dayNoteSheet(iso))}>
         <span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name={note?.tag ? DAY_NOTE_ICON[note.tag] : 'note'} /></span>
@@ -3434,8 +3461,12 @@ function DayOverride({ iso, close }) {
       </div>
     </div>}
     {/* Activities on this day (lib/activities.js): a run, a match. Logged by hand here too. */}
-    {(acts.length > 0 || iso <= todayISO()) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
+    {(acts.length > 0 || pendingSports.length > 0 || iso <= todayISO()) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
       {acts.map(a => <ActivityRow key={a.id} a={a} showDate={false} />)}
+      {pendingSports.map(sport => <Row key={sport} icon={SPORT_ICON[sport]} title={t(SPORT_LABEL[sport])}
+        subtitle={t(iso > todayISO() ? 'Planned sport' : 'Record completion')}
+        accessory={iso > todayISO() ? 'none' : 'chevron'}
+        onClick={iso > todayISO() ? undefined : () => { close(); activitySheet({ day: iso, sport }) }} />)}
       {iso <= todayISO() && <div className="item act-row" {...tappable(() => { close(); activitySheet({ day: iso }) })}>
         <span className="lrow-i act-i" aria-hidden="true"><Icon name="figureRun" /></span>
         <div className="grow"><div className="tt">{t('Log an activity')}</div><div className="ss">{t('A run, a ride, a match')}</div></div>
@@ -3443,9 +3474,13 @@ function DayOverride({ iso, close }) {
       </div>}
     </div>}
     {/* Recovery sessions on this day (lib/recovery-sessions.js), and a way to log one on a past day or today. */}
-    {(recs.length > 0 || iso <= todayISO()) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
+    {(recs.length > 0 || pendingRecovery.length > 0 || iso <= today) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
       {recs.map(r => <RecoveryRow key={r.id} r={r} showDate={false} />)}
-      {iso <= todayISO() && <div className="item rec-row" {...tappable(() => { close(); recoverySheet({ day: iso }) })}>
+      {pendingRecovery.map(kind => <Row key={kind} icon={RECOVERY_ICON[kind]} title={t(RECOVERY_LABEL[kind])}
+        subtitle={t(iso > today ? 'Planned recovery' : 'Record completion')}
+        accessory={iso > today ? 'none' : 'chevron'}
+        onClick={iso > today ? undefined : () => { close(); recoverySheet({ day: iso, kind }) }} />)}
+      {iso <= today && <div className="item rec-row" {...tappable(() => { close(); recoverySheet({ day: iso }) })}>
         <span className="lrow-i rec-i" aria-hidden="true"><Icon name="sparkles" /></span>
         <div className="grow"><div className="tt">{t('Log recovery')}</div><div className="ss">{t('Sauna, ice bath, massage, mobility')}</div></div>
         <Icon name="plus" className="chev" />
@@ -3463,6 +3498,105 @@ function DayOverride({ iso, close }) {
   </>
 }
 export const dayOverrideSheet = iso => ui().openSheet(close => <DayOverride iso={iso} close={close} />)
+
+const DATED_ACTIVITY_OPTIONS = {
+  sport: { title: 'Schedule sport', kinds: SPORTS, labels: SPORT_LABEL, icons: SPORT_ICON },
+  recovery: { title: 'Schedule recovery', kinds: RECOVERY_KINDS, labels: RECOVERY_LABEL, icons: RECOVERY_ICON },
+}
+
+function DatedActivityPlan({ iso, type, close }) {
+  const { title, kinds, labels, icons } = DATED_ACTIVITY_OPTIONS[type]
+  const [initial] = useState(() => datedActivitiesOn(S(), iso, type))
+  const [selected, setSelected] = useState(initial)
+  const toggle = kind => setSelected(list => list.includes(kind) ? list.filter(x => x !== kind) : [...list, kind])
+  const save = () => {
+    if (iso < todayISO()) { close(); return }
+    const changes = kinds.filter(kind => selected.includes(kind) !== initial.includes(kind))
+    if (changes.length) update(s => {
+      s.datedActivityPlan = changes.reduce((plan, kind) =>
+        withDatedActivity(plan, iso, type, kind, selected.includes(kind)), s.datedActivityPlan)
+    })
+    close()
+    if (changes.length) toast(t('Saved'))
+  }
+  return <>
+    <h3>{t(title)}</h3>
+    <div className="small muted" style={{ marginBottom: 12 }}>{fmtDate(iso, true, true)}</div>
+    <div className="chips rec-kinds" role="group" aria-label={t(title)} style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+      {kinds.map(kind => {
+        const on = selected.includes(kind)
+        return <button key={kind} type="button" aria-pressed={on} onClick={() => toggle(kind)}
+          className={'chip nocap ichip' + (on ? ' on' : '')}><Icon name={icons[kind]} />{t(labels[kind])}</button>
+      })}
+    </div>
+    <Button variant="primary" icon="check" onClick={save}>{t('Save')}</Button>
+  </>
+}
+const datedActivitySheet = (iso, type) => ui().openSheet(close => <DatedActivityPlan iso={iso} type={type} close={close} />)
+
+function ScheduledWorkout({ iso, close }) {
+  const st = useStore(s => s.S)
+  const planned = scheduledWorkoutOf(st, iso)
+  const [id] = useState(() => planned?.id || uid())
+  const [initialStamp] = useState(() => planned?._ts)
+  const [name, setName] = useState(() => planned?.name || t('One-off workout'))
+  const [exercises, setExercises] = useState(() => planned?.ex || [])
+  const canEdit = iso >= todayISO() && !completedScheduledWorkout(st, planned) && st.active?.scheduledWorkoutId !== id
+  const editExercise = (ex, index = exercises.length) => {
+    const existing = exercises[index]
+    exConfigSheet(ex, existing, cfg => {
+      setExercises(list => {
+        const next = [...list]
+        next[index] = { ...cfg, id: ex.id }
+        return next
+      })
+    }, existing ? () => setExercises(list => list.filter((_, i) => i !== index)) : null,
+    null, null, null, existing ? t('Save') : t('Add exercise'), { freestyle: 'add' })
+  }
+  const save = value => {
+    const latest = S()
+    const current = scheduledWorkoutOf(latest, iso)
+    if (iso < todayISO() || latest.active?.scheduledWorkoutId === id || completedScheduledWorkout(latest, current)) return
+    if ((current && current.id !== id) || current?._ts !== initialStamp) {
+      close()
+      toast(t('The scheduled workout is no longer available.'))
+      return
+    }
+    update(s => { s.scheduledWorkouts = withScheduledWorkout(s.scheduledWorkouts, iso, value) })
+    close()
+    toast(t(value ? 'Saved' : 'Removed'))
+  }
+  const addExercise = () => exercisePicker((ex, quick) => {
+    if (!quick) { editExercise(ex); return }
+    const config = pickedExerciseConfig(ex.id, undefined, S())
+    setExercises(list => [...list, { ...config, id: ex.id }])
+    toast(t('“{0}” added to {1}', exerciseNameText(ex), name || t('One-off workout')))
+  })
+  return <>
+    <h3>{t(planned ? 'One-off workout' : 'Schedule a one-off workout')}</h3>
+    <div className="muted small" style={{ marginBottom: 12 }}>{fmtDate(iso, true, true)}</div>
+    {canEdit ? <TextField aria-label={t('Name')} value={name} maxLength={80} onChange={e => setName(e.target.value)} />
+      : <div className="tt">{name}</div>}
+    <div className="list" style={{ marginBlock: 12 }}>
+      {exercises.map((cfg, i) => {
+        const ex = exOr(cfg.id)
+        const view = exView(st, cfg.id)
+        return <Row key={i} icon="dumbbell" title={exerciseNameFor(ex)}
+          subtitle={exLine(viewTarget(st, cfg.id, cfg), view.unit, speedUnitOf(view))}
+          accessory={canEdit ? 'chevron' : undefined} onClick={canEdit ? () => editExercise(ex, i) : undefined} />
+      })}
+    </div>
+    {canEdit && <div className="list">
+      <Button icon="plus" onClick={addExercise}>{t('Add exercise')}</Button>
+      <Button variant="primary" disabled={!exercises.length}
+        onClick={() => save({ id, name: name.trim() || t('One-off workout'), ex: exercises })}>{t('Save')}</Button>
+      {planned && <Button variant="ghost" icon="trash" onClick={() => confirmSheet({
+        title: t('Remove scheduled workout?'), confirmText: t('Remove'), danger: true, onConfirm: () => save(null),
+      })}>{t('Remove')}</Button>}
+    </div>}
+  </>
+}
+const scheduledWorkoutSheet = iso => ui().openSheet(close => <ScheduledWorkout iso={iso} close={close} />)
 
 // Why a day went without training (#261): one quick pick, a line of text, or both. Saving an
 // empty note takes it away (a stamped clear, lib/day-notes.js withDayNote), and so does Remove.
@@ -3508,17 +3642,21 @@ export const dayNoteSheet = iso => ui().openSheet(close => <DayNote iso={iso} cl
 function DayAssign({ day, close }) {
   const st = useStore(s => s.S)
   const cur = [].concat(st.week[day] || [])
+  const sports = sportsOnWeekday(st, day)
+  const toggleSport = sport => update(s => {
+    s.sportPlan = withPlannedSport(s.sportPlan, day, sport, !sportsOnWeekday(s, day).includes(sport))
+  })
   const toggle = id => update(s => {
     const ids = [].concat(s.week[day] || [])
     const next = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
     if (next.length) s.week[day] = next; else delete s.week[day]
   })
-  const rest = () => { update(s => { delete s.week[day] }); close() }
+  const rest = () => update(s => { delete s.week[day] })
   return <>
     <h3 style={{ marginBottom: 2 }}>{t(DAYN[day])}</h3>
-    <div className="muted small" style={{ marginBottom: 10 }}>{t('Pick one routine, or more to train them together.')}</div>
+    <h4 className="sec">{t('Strength training')}</h4>
     <div className="list menu-list">
-      <div className="item menu-item" {...tappable(rest)}><span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name="moon" /></span><div className="grow"><div className="tt">{t('Rest day')}</div></div><span className={'menu-on' + (!cur.length ? ' is-on' : '')}><Icon name="check" /></span></div>
+      <div className="item menu-item" aria-pressed={!cur.length} {...tappable(rest)}><span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name="moon" /></span><div className="grow"><div className="tt">{t('No strength training')}</div></div><span className={'menu-on' + (!cur.length ? ' is-on' : '')}><Icon name="check" /></span></div>
       {st.routines.map(r => {
         const on = cur.includes(r.id)
         return <div key={r.id} className="item menu-item" aria-pressed={on} {...tappable(() => toggle(r.id))}>
@@ -3539,6 +3677,14 @@ function DayAssign({ day, close }) {
         {st.weekApart?.[day] === true ? t('Each one is its own workout, with its own Start on Home.') : t('One workout, one after the other.')}
       </div>
     </div>}
+    <h4 className="sec" id="day-assign-sports">{t('Sport')}</h4>
+    <div className="chips rec-kinds" role="group" aria-labelledby="day-assign-sports" style={{ flexWrap: 'wrap' }}>
+      {SPORTS.map(sport => {
+        const on = sports.includes(sport)
+        return <button key={sport} type="button" className={'chip nocap ichip' + (on ? ' on' : '')}
+          aria-pressed={on} onClick={() => toggleSport(sport)}><Icon name={SPORT_ICON[sport]} />{t(SPORT_LABEL[sport])}</button>
+      })}
+    </div>
     <div style={{ height: 12 }} />
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
@@ -3907,11 +4053,14 @@ function Calendar({ start, close, help = false }) {
   const monthVol = monthWs.reduce((a, w) => a + sessionVolume(w, st), 0)
   const monthMs = monthWs.reduce((a, w) => a + Math.max(0, (w.end || w.start) - w.start), 0)
   const cells = []
+  let showPlannedSport = false
+  let showPlannedRecovery = false
   for (let i = 0; i < startOffset; i++) cells.push(<div key={'e' + i} />)
   for (let d = 1; d <= daysIn; d++) {
     const iso = y + '-' + String(mo + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0')
     // A fulfilled pin (a coach session pinned here and since done) reads as no override, as it does everywhere else.
-    const ws = byDay[iso], planned = effectiveRoutineIds(st, iso).length > 0, ovr = st.dayPlan[iso] !== undefined && pinState(st, st.dayPlan[iso]) !== 'done'
+    const ws = byDay[iso], planned = effectiveRoutineIds(st, iso).length > 0 || !!scheduledWorkoutOf(st, iso)
+    const ovr = st.dayPlan[iso] !== undefined && pinState(st, st.dayPlan[iso]) !== 'done'
     // A day off with a note on it (#261) shows the note's dot instead of the plan's, and its
     // note as the tooltip; tapping it opens the day sheet, where the note is.
     const note = !ws && dayNoteOf(st, iso)
@@ -3920,21 +4069,28 @@ function Calendar({ start, close, help = false }) {
     const missed = !ws && !note && planned && iso < today
     // A trained day that was moved keeps a hint of the orange (index.css .cal-d i.moved).
     const moved = !!ws && ovr && st.dayPlan[iso] !== 'rest'
-    const rec = !ws && recDays.has(iso)
-    const act = !ws && actDays.has(iso)
-    const dotCls = ws ? (moved ? 'done moved' : 'done') : note ? 'noted' : act ? 'sport' : rec ? 'recov' : missed ? 'miss' : ovr && planned ? 'ovr' : planned ? 'plan' : ''
+    const rec = recDays.has(iso) ? 'done' : datedActivitiesOn(st, iso, 'recovery').length ? 'planned' : ''
+    const act = actDays.has(iso) ? 'done' : plannedSportsOn(st, iso).length ? 'planned' : ''
+    showPlannedSport ||= act === 'planned'
+    showPlannedRecovery ||= rec === 'planned'
+    const dotCls = ws ? (moved ? 'done moved' : 'done') : note ? 'noted' : missed ? 'miss' : ovr && planned ? 'ovr' : planned ? 'plan' : ''
+    const label = [fmtDate(iso, true), act && t(act === 'done' ? 'Sport logged' : 'Planned sport'),
+      rec && t(rec === 'done' ? 'Recovery logged' : 'Planned recovery'), missed && t('Missed plan')].filter(Boolean).join(', ')
     const wkOf = weeks ? weekKey(iso, weekStartOf(st)) : null
     const frozenDay = !!wkOf && weeks.log.get(wkOf)?.s === 'frozen'
     const excusedDay = !!wkOf && weeks.log.get(wkOf)?.s === 'excused'
     cells.push(<button key={d} className={'cal-d' + (ws ? ' has' : '') + (note ? ' noted' : '') + (missed ? ' missed' : '') + (selDay === iso ? ' sel-day' : '') + (frozenDay ? ' wk-frozen' : '') + (excusedDay ? ' wk-excused' : '') + (iso === today ? ' today' : '')}
       title={note ? dayNoteLine(note, t) : undefined} aria-pressed={missed && weeks ? selDay === iso : undefined}
-      aria-label={missed ? fmtDate(iso, true) + ': ' + t('Missed plan') : undefined} onClick={() => {
+      aria-label={label} onClick={() => {
       // With the streak shown, a missed planned day first says what it meant; its line has the way in.
       if (missed && weeks) { setSelWkRaw(null); setSelDay(selDay === iso ? null : iso); return }
-      if (!ws) { close(); dayOverrideSheet(iso); return }
-      if (ws.length === 1) { close(); workoutDetailSheet(ws[0]); return }
-      close(); ui().openSheet(c2 => <><h3>{fmtDate(iso, true)}</h3><div className="list">{ws.map(w => <WorkoutRow key={w.id} w={w} onClick={() => { c2(); workoutDetailSheet(w) }} />)}</div></>)
-    }}><span>{d}</span><i className={dotCls} /></button>)
+      close()
+      dayOverrideSheet(iso)
+    }}><span>{d}</span><span className="wday-marks">
+      {(dotCls || (!act && !rec)) && <i className={dotCls} />}
+      {act && <span className={'sport-mark ' + act} />}
+      {rec && <span className={'recovery-mark ' + rec} />}
+    </span></button>)
     // The week's mark closes its row (the last row too, short as it may be: it sits in column 8).
     if (weeks && ((startOffset + d) % 7 === 0 || d === daysIn)) {
       cells.push(<WeekMark key={'w' + wkOf} wk={wkOf} entry={weeks.log.get(wkOf)} selected={selWk === wkOf} onSelect={setSelWk} />)
@@ -3960,11 +4116,14 @@ function Calendar({ start, close, help = false }) {
         <span><i style={{ background: 'var(--teal)' }} />{t('Recovery')}</span>}
       {[...actDays].some(k => k.startsWith(y + '-' + String(mo + 1).padStart(2, '0'))) &&
         <span><i style={{ background: 'var(--blue)' }} />{t('Sport')}</span>}
+      {showPlannedSport && <span><span className="sport-mark planned" />{t('Planned sport')}</span>}
+      {showPlannedRecovery && <span><span className="recovery-mark planned" />{t('Planned recovery')}</span>}
     </div>
     {weeks && <><StreakLegend /><WeekNote wk={selWk} day={selDay}
       entry={selDay ? weeks.log.get(weekKey(selDay, weekStartOf(st))) : selWk ? weeks.log.get(selWk) : null}
-      onOpenDay={iso => { close(); dayOverrideSheet(iso) }} /></>}
-    <div className="small dim" style={{ textAlign: 'center', marginTop: 10 }}>{t('Tap a trained day for details · tap any other day to plan a session')}</div>
+      onOpenDay={iso => { close(); dayOverrideSheet(iso) }}
+      onLogFreestyle={iso => { close(); logPastWorkoutSheet({ iso }) }} /></>}
+    <div className="small dim" style={{ textAlign: 'center', marginTop: 10 }}>{t('Tap a day to see its workouts or log a session.')}</div>
   </>
 }
 // `help` opens the streak's how-to even after "Got it" (Stats → the streak card's link).
@@ -3978,7 +4137,7 @@ export function WorkoutRow({ w, onClick, tour }) {
   return <div className="item" data-tour={tour} {...tappable(onClick)}>
     <span className="lrow-i" style={{ width: 34, height: 34, borderRadius: 8, fontSize: 19 }}><Icon name={glyph} /></span>
     <div className="grow"><div className="tt">{w.name}</div>
-      <div className="ss">{[fmtDate(w.d, true), ...durPart(w.end - w.start), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(sessionVolume(w, st), st.unit)].join(' · ')}</div></div>
+      <div className="ss">{[fmtDate(workoutDay(w) || w.d, true), ...durPart(w.end - w.start), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(sessionVolume(w, st), st.unit)].join(' · ')}</div></div>
     {mediaN > 0 && <span className="wrow-media" title={tn('{0} photo or video', '{0} photos or videos', mediaN)} aria-label={tn('{0} photo or video', '{0} photos or videos', mediaN)}><Icon name="image" />{mediaN}</span>}
     {w.prs && w.prs.length > 0 && <span className="pr"><Icon name="trophy" />{w.prs.length} PR</span>}
     <Icon name="chevronRight" className="chev" />
@@ -3999,6 +4158,18 @@ export function DayNoteRow({ iso, note }) {
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
 // `opts.lead`: exercises a last session did not get to (lib/leftovers.js, #985), done first.
+export function startScheduledWorkout(iso, close) {
+  const st = S()
+  if (st.active) { toast(t('Finish the current workout first.')); return }
+  const plan = scheduledWorkoutOf(st, iso)
+  if (iso !== todayISO() || !plan || completedScheduledWorkout(st, plan)) return
+  close?.()
+  startFlow([], { scheduled: { iso, id: plan.id } })
+}
+
+const scheduledEntries = (st, plan) =>
+  plan.ex.map(cfg => ({ id: cfg.id, ...buildPlannedEntry(st, cfg, null, { noProg: true }) }))
+
 export function startFlow(routineIds, opts = {}) {
   // The daily-form check-in comes first (v1.4.5, lib/daily-form.js): only when switched on
   // (Settings → Workout), never with the Health module off, once a day.
@@ -4013,7 +4184,8 @@ function dailyCheckinSheet(routineIds, opts) {
   const st = S()
   const today = todayISO()
   // Which ways of going lighter this session can take, worked out on the entries it will start with.
-  const preview = { entries: buildCombinedEntries(st, routineIds).entries }
+  const plan = opts.scheduled && scheduledWorkoutOf(st, today)
+  const preview = { entries: plan ? scheduledEntries(st, plan) : buildCombinedEntries(st, routineIds).entries }
   const lighter = LIGHTER_KINDS.filter(k => canGoLighter(preview, k))
   // Last night's sleep from the phone's health store, when its vitals are read (lib/vitals.js).
   const sleep = MOBILE ? Promise.all([loadHealth(), nativePlatform()])
@@ -4029,9 +4201,15 @@ function dailyCheckinSheet(routineIds, opts) {
 }
 // `opts` from the Apple Watch (lib/watch-sync.js): a session started there keeps the watch's id,
 // so the sets ticked on it find it, and its start time, however late the phone hears of it.
-export function beginWorkout(routineIds, bw, { id = null, start = null, lead = null, lighter = null } = {}) {
+export function beginWorkout(routineIds, bw, { id = null, start = null, lead = null, lighter = null, scheduled = null } = {}) {
   const st = S()
-  const built = buildCombinedEntries(st, routineIds)
+  const plan = scheduled && scheduledWorkoutOf(st, scheduled.iso)
+  if (scheduled && (scheduled.iso !== todayISO() || !plan || plan.id !== scheduled.id || completedScheduledWorkout(st, plan))) {
+    toast(t('The scheduled workout is no longer available.'))
+    return
+  }
+  if (scheduled && st.active) { toast(t('Finish the current workout first.')); return }
+  const built = plan ? { routineIds: [], routines: [], entries: scheduledEntries(st, plan) } : buildCombinedEntries(st, routineIds)
   const { routineIds: rids, routines } = built
   // The leftovers keep their own routine's `rid`, so the history reads them back per routine;
   // the session stays today's (routineIds), so the plan and the queue count today only.
@@ -4044,7 +4222,8 @@ export function beginWorkout(routineIds, bw, { id = null, start = null, lead = n
       // A session tracks its routines as a list; per-entry `rid` carries which one each
       // exercise came from. No top-level `excludeFromProgression` — per-entry `noProg` does it.
       routineIds: rids,
-      name: routines.length ? deriveSessionName(routines.map(r => r.name)) : first.length ? deriveSessionName(lead.routines.map(r => r.name)) : t('Freestyle'),
+      name: plan ? plan.name : routines.length ? deriveSessionName(routines.map(r => r.name)) : first.length ? deriveSessionName(lead.routines.map(r => r.name)) : t('Freestyle'),
+      ...(plan ? { scheduledWorkoutId: plan.id } : {}),
       bw: bw || null, cur: 0, entries,
       // Snapshot the layout at start so the header ⋮ can change it for this session only —
       // changing the saved default (Settings → Workout view) mid-session leaves it alone.
@@ -4133,17 +4312,19 @@ function LogPastWorkout({ initial, close }) {
   const [date, setDate] = useState(initial?.iso || isoOf(yesterday))
   const [time, setTime] = useState('18:00')
   const [dur, setDur] = useState(60)
-  const [routineId, setRoutineId] = useState(planned.length > 1 ? PLANNED_DAY : planned[0]?.id || '')
+  const [useRoutine, setUseRoutine] = useState(planned.length > 0)
+  const [routineId, setRoutineId] = useState(planned.length > 1 ? PLANNED_DAY : planned[0]?.id || st.routines[0]?.id)
   const today = todayISO()
   const options = [
-    { value: '', label: t('Freestyle') },
     ...(planned.length > 1 ? [{ value: PLANNED_DAY, label: deriveSessionName(planned.map(r => r.name)) }] : []),
     ...st.routines.map(r => ({ value: r.id, label: r.name })),
   ]
 
   const go = replaceId => {
     close()
-    const routineIds = routineId === PLANNED_DAY ? planned.map(r => r.id) : routineId ? [routineId] : []
+    const routineIds = useRoutine && routineId
+      ? routineId === PLANNED_DAY ? planned.map(r => r.id) : [routineId]
+      : []
     beginBackfill({ iso: date, time, durationMin: Math.max(1, dur), routineIds, replaceId })
   }
   const submit = () => {
@@ -4168,7 +4349,15 @@ function LogPastWorkout({ initial, close }) {
     {!(dur >= 1) && <div className="small" style={{ color: 'var(--red)', marginTop: 6 }}>{t('Enter how long it took (at least 1 minute).')}</div>}
     {dur > MAX_DURATION_MIN && <div className="small" style={{ color: 'var(--red)', marginTop: 6 }}>{t('That’s more than a day. Keep it to 24 hours or less.')}</div>}
     <div style={{ height: 8 }} />
-    <SelectRow icon="dumbbell" title={t('Routine')} value={routineId} options={options} onChange={setRoutineId} />
+    {options.length > 0 ? <Segmented value={useRoutine ? 'routine' : 'freestyle'} of={t('Workout type')}
+      onChange={value => setUseRoutine(value === 'routine')}
+      options={[
+        { value: 'freestyle', label: t('Freestyle'), icon: 'shuffle' },
+        { value: 'routine', label: t('Routine'), icon: 'dumbbell' },
+      ]} /> : <div className="small">{t('Freestyle')}</div>}
+    {useRoutine
+      ? <SelectRow icon="dumbbell" title={t('Routine')} value={routineId} options={options} onChange={setRoutineId} />
+      : <div className="small muted" style={{ marginTop: 8 }}>{t('Choose any exercises when you continue.')}</div>}
     <div style={{ height: 18 }} />
     <Button variant="primary" onClick={submit}>{t('Continue')}</Button>
   </>
@@ -4193,7 +4382,7 @@ function SameDayChoice({ iso, existing, onReplace, onAdd, close }) {
     <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
   </div>
 }
-// History's button hands this its click event; only a day from the plan counts as `initial`.
+// History's button can pass a click event. Only an explicit date prefills the form.
 export function logPastWorkoutSheet(initial) {
   if (S().active) { toast(t('Finish the current workout first.')); return }
   const from = typeof initial?.iso === 'string' ? initial : null

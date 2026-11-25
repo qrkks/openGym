@@ -1,31 +1,39 @@
-.sport-stats-filters .lrow-v {
+.session-stats-filters .lrow-v {
   max-width: 67%;
   white-space: normal;
   overflow-wrap: anywhere;
 }
-.sport-stats-totals {
+.sport-streak {
+  display: grid;
+  gap: 3px;
+  margin-block: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+.session-stats-totals {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 14px 0 0;
   padding-block: 12px;
   border-block: var(--hair) solid var(--sep);
 }
-.sport-stats-totals > div {
+.session-stats-totals > div {
   padding-inline: 8px;
   text-align: center;
 }
-.sport-stats-totals > div + div { border-inline-start: var(--hair) solid var(--sep); }
-.sport-stats-totals dt { color: var(--label-2); font-size: var(--fs-caption); }
-.sport-stats-totals dd {
+.session-stats-totals > div + div { border-inline-start: var(--hair) solid var(--sep); }
+.session-stats-totals dt { color: var(--label-2); font-size: var(--fs-caption); }
+.session-stats-totals dd {
   margin: 4px 0 0;
   font-size: var(--fs-body);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-.sport-stats h3 { margin: 16px 0 6px; }
-.sport-stats ul, .sport-trend { padding: 0; margin: 0; list-style: none; }
-.sport-stats ul li + li { border-block-start: var(--hair) solid var(--sep); }
+.session-stats h3 { margin: 16px 0 6px; }
+.session-stats ul, .sport-trend { padding: 0; margin: 0; list-style: none; }
+.session-stats ul li + li { border-block-start: var(--hair) solid var(--sep); }
 .sport-stats .sport-trend {
   display: grid;
   grid-auto-flow: column;
@@ -65,4 +73,4 @@
   text-align: center;
   margin-block-start: 4px;
 }
-.sport-stats-history p { margin-block: 6px 0; }
+.session-stats-history p { margin-block: 6px 0; }
