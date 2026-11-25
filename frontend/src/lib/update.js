@@ -13,8 +13,8 @@ import { logRequest } from './net-log.js'
 import { MOBILE } from './mobile.js'
 import { APK_VARIANTS, APK_VARIANT } from './apk-variant.js'
 
-const PERSONAL = import.meta.env.VITE_PERSONAL_ANDROID === '1'
-const REPO = PERSONAL ? 'qrkks/openGym' : 'DuarteSantos8/openGym'
+const EXTENDED = import.meta.env.VITE_EXTENDED_ANDROID === '1'
+const REPO = EXTENDED ? 'qrkks/openGym' : 'DuarteSantos8/openGym'
 const LATEST_URL = `https://api.github.com/repos/${REPO}/releases/latest`
 export const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`
 
@@ -32,8 +32,8 @@ export const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`
 function compareSemver(a, b) {
   const pa = a.replace(/^v/, '').split('+')[0].split('.').map(Number)
   const pb = b.replace(/^v/, '').split('+')[0].split('.').map(Number)
-  // Personal releases append the GitHub Actions run number to the upstream version.
-  for (let i = 0; i < (PERSONAL ? 4 : 3); i++) {
+  // Extended releases append the Android build revision to the upstream version.
+  for (let i = 0; i < (EXTENDED ? 4 : 3); i++) {
     const diff = (pa[i] || 0) - (pb[i] || 0)
     if (diff > 0) return 1
     if (diff < 0) return -1
@@ -65,17 +65,17 @@ async function fetchLatest() {
   if (!res.ok) throw new Error(`GitHub API ${res.status}`)
   const latest = await res.json()
   const tag = String(latest.tag_name || '')
-  if (PERSONAL && !/^personal-v\d+\.\d+\.\d+\.\d+$/.test(tag)) {
+  if (EXTENDED && !/^extended-v\d+\.\d+\.\d+\.\d+$/.test(tag)) {
     return { hasUpdate: false, latestVersion: __APP_VERSION__, apkUrl: null, hashUrl: null }
   }
-  const latestVersion = tag.replace(PERSONAL ? /^personal-v/ : /^v/, '')
+  const latestVersion = tag.replace(EXTENDED ? /^extended-v/ : /^v/, '')
   if (!latestVersion) return { hasUpdate: false, latestVersion: __APP_VERSION__, apkUrl: null, hashUrl: null }
   const assets = latest.assets || []
-  const fileName = `openGym-Personal-${latestVersion}.apk`
-  const { apk, hash } = pickApk(PERSONAL
+  const fileName = `openGym-Extended-${latestVersion}.apk`
+  const { apk, hash } = pickApk(EXTENDED
     ? assets.filter(asset => asset.name === fileName || asset.name === `${fileName}.sha256`)
     : assets)
-  const hasUpdate = compareSemver(latestVersion, __APP_VERSION__) > 0 && (!PERSONAL || Boolean(apk && hash))
+  const hasUpdate = compareSemver(latestVersion, __APP_VERSION__) > 0 && (!EXTENDED || Boolean(apk && hash))
   return { hasUpdate, latestVersion, apkUrl: apk?.browser_download_url || null, hashUrl: hash?.browser_download_url || null,
     apkApiUrl: apk?.url || null, hashApiUrl: hash?.url || null }
 }

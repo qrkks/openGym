@@ -4,6 +4,12 @@ Newest first. Each release is a `## vX.Y.Z (YYYY-MM-DD)` section, and the releas
 GitHub and GitLab are that section, word for word. New work goes under `## Unreleased` until the
 tag. Write it for the people using the app: what changed for them, short, no em dashes.
 
+## v1.4.5.7 (2026-11-25)
+
+- Android now displays openGym Extended. The APK and its update channel use the Extended name.
+- If you installed the previous Android build, download and install the new APK over it once.
+  Your existing records stay on the device. Future updates are available in **Settings → About & updates**.
+
 ## v1.4.5.6 (2026-11-25)
 
 **openGym Extended · 训练、运动与恢复**

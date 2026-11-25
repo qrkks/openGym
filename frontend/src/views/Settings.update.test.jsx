@@ -138,10 +138,10 @@ describe('Settings — in-app update check', () => {
     expect(mocks.confirmSheet.mock.calls[0][0].title).toBe('Update to 9.9.9?')
   })
 
-  it('shows the update action in the personal Android build', async () => {
+  it('shows the update action in the extended Android build', async () => {
     mocks.MOBILE = true
     mocks.android = true
-    mocks.channel = 'personal'
+    mocks.channel = 'extended'
     await mount()
     expect(mocks.checkForUpdate).toHaveBeenCalledTimes(1)
     expect(updateRow()).toBeTruthy()

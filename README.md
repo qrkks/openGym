@@ -21,12 +21,12 @@ openGym Extended is an independently maintained fork of
 ## Install on Android
 
 Download the signed APK from the [latest Extended release](https://github.com/qrkks/openGym/releases/latest).
-If you already use OpenGym Personal, install the new APK over it to keep your records.
-The fork and upstream openGym install side by side. In the fork, open **Settings → About & updates**
-to check for new releases.
+If you already use OpenGym Personal, download and install the first Extended APK over it to keep
+your records. After that upgrade, open **Settings → About & updates** to check for new Extended
+releases. The fork and upstream openGym install side by side.
 
-**安卓安装** 从 [最新发布](https://github.com/qrkks/openGym/releases/latest) 下载 APK。已安装旧版
-OpenGym Personal 的用户可直接覆盖安装并保留记录。之后可在 **设置 → 关于与更新** 检查新版。
+**安卓安装** 从 [最新发布](https://github.com/qrkks/openGym/releases/latest) 下载 APK。旧版
+OpenGym Personal 用户请手动覆盖安装一次，原有记录会保留。之后可在 **设置 → 关于与更新** 检查新版。
 
 ## Try the web app locally
 

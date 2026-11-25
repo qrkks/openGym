@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OpenGym 自用版</string>
-    <string name="title_activity_main">OpenGym 自用版</string>
+    <string name="app_name">openGym Extended</string>
+    <string name="title_activity_main">openGym Extended</string>
     <string name="package_name">io.github.qrkks.opengym</string>
     <string name="custom_url_scheme">io.github.qrkks.opengym</string>
 </resources>

@@ -101,8 +101,8 @@ const flavor = {
 // answer from inside the app. Unset (the ordinary case, and every upstream build) it changes
 // nothing: the string is exactly package.json's version.
 const pkgVersion = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
-const personalRevision = process.env.APP_PERSONAL_REVISION
-const buildVersion = personalRevision ? `${pkgVersion}.${personalRevision}` : pkgVersion
+const extendedRevision = process.env.APP_EXTENDED_REVISION
+const buildVersion = extendedRevision ? `${pkgVersion}.${extendedRevision}` : pkgVersion
 const appVersion = process.env.APP_BUILD ? `${buildVersion}+${process.env.APP_BUILD}` : buildVersion
 
 export default defineConfig({

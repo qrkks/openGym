@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-def personalRevision = providers.gradleProperty('personalRevision').orElse('0').get().toInteger()
+def extendedRevision = providers.gradleProperty('extendedRevision').orElse('0').get().toInteger()
 
 android {
     namespace = "ch.duartesantos.opengym"
@@ -74,12 +74,12 @@ android {
             // The gym reminder needs no Play services (the platform's proximity alerts).
             buildConfigField "boolean", "BACKGROUND_LOCATION", "true"
         }
-        personal {
+        extended {
             dimension = "channel"
             applicationId "io.github.qrkks.opengym"
-            versionCode 1000000 + personalRevision
-            versionNameSuffix ".${personalRevision}"
-            buildConfigField "String", "CHANNEL", '"personal"'
+            versionCode 1000000 + extendedRevision
+            versionNameSuffix ".${extendedRevision}"
+            buildConfigField "String", "CHANNEL", '"extended"'
             buildConfigField "boolean", "BACKGROUND_LOCATION", "true"
         }
         offline {
@@ -99,7 +99,7 @@ android {
         sideload.java.srcDirs += ['src/gms/java', 'src/ciq/java']
         play.java.srcDirs += ['src/gms/java', 'src/ciq/java']
         fdroid.java.srcDirs += ['src/noWatch/java']
-        personal.java.srcDirs += ['src/sideload/java', 'src/noWatch/java']
+        extended.java.srcDirs += ['src/sideload/java', 'src/noWatch/java']
         // openGym Offline answers "no watch, no Garmin, no packs, no updater" like F-Droid.
         offline.java.srcDirs += ['src/fdroid/java', 'src/noWatch/java']
     }
@@ -162,7 +162,7 @@ apply from: 'capacitor.build.gradle'
 // which win over main's).
 def fdroidDroppedPlugins = ['@capacitor-mlkit/barcode-scanning']
 configurations.configureEach { c ->
-    if (c.name.toLowerCase() =~ /^(fdroid|offline|personal)/) {
+    if (c.name.toLowerCase() =~ /^(fdroid|offline|extended)/) {
         c.exclude module: 'capacitor-mlkit-barcode-scanning'
     }
 }
@@ -182,9 +182,9 @@ def fdroidPluginList = tasks.register('fdroidCapacitorPlugins') {
 }
 android.sourceSets.fdroid.assets.srcDir(fdroidAssetsDir)
 android.sourceSets.offline.assets.srcDir(fdroidAssetsDir)
-android.sourceSets.personal.assets.srcDir(fdroidAssetsDir)
+android.sourceSets.extended.assets.srcDir(fdroidAssetsDir)
 tasks.configureEach { t ->
-    if (t.name ==~ /(merge|generate)(Fdroid|Offline|Personal)\w*Assets|lintVitalAnalyze(Fdroid|Offline|Personal)\w*|.*(Fdroid|Offline|Personal)\w*Lint\w*/) t.dependsOn fdroidPluginList
+    if (t.name ==~ /(merge|generate)(Fdroid|Offline|Extended)\w*Assets|lintVitalAnalyze(Fdroid|Offline|Extended)\w*|.*(Fdroid|Offline|Extended)\w*Lint\w*/) t.dependsOn fdroidPluginList
 }
 
 // The asset packs themselves, generated on the release machine only (settings.gradle).

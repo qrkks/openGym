@@ -74,10 +74,10 @@ describe('install channel', () => {
     expect(await getChannel()).toBe('sideload')
   })
 
-  it('lets the personal build update itself without loading the native scanner', async () => {
-    h.answer = { channel: 'personal' }
+  it('lets the extended build update itself without loading the native scanner', async () => {
+    h.answer = { channel: 'extended' }
     const { getChannel, selfUpdates, nativeScanner } = await import('./channel.js')
-    expect(await getChannel()).toBe('personal')
+    expect(await getChannel()).toBe('extended')
     expect(await selfUpdates()).toBe(true)
     expect(await nativeScanner()).toBe(false)
   })

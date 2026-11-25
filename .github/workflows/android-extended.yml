@@ -1,6 +1,9 @@
 name: Build openGym Extended for Android
 
 on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/android-extended.yml']
   workflow_dispatch:
     inputs:
       draft_release:
@@ -12,16 +15,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: opengym-personal-android
+  group: opengym-extended-android
   cancel-in-progress: false
 
 jobs:
   build:
-    if: github.repository == 'qrkks/openGym' && github.ref == 'refs/heads/main'
+    if: >-
+      github.repository == 'qrkks/openGym' && github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.run_number == 1 && startsWith(github.event.head_commit.message, 'Release the Extended Android update channel')))
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.value }}
+      revision: ${{ steps.version.outputs.revision }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -46,7 +53,10 @@ jobs:
         run: |
           base=$(node -p 'require("./package.json").version')
           [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          echo "value=$base.$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+          # Continue after Android 1.4.5.6, whose version code was 1000006.
+          revision=$((6 + GITHUB_RUN_NUMBER))
+          echo "value=$base.$revision" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
       - name: Install frontend dependencies and run tests
         working-directory: frontend
         run: |
@@ -55,16 +65,18 @@ jobs:
       - name: Build and check the mobile bundle with bundled exercise media
         working-directory: frontend
         env:
-          APP_PERSONAL_REVISION: ${{ github.run_number }}
-          VITE_PERSONAL_ANDROID: '1'
+          APP_EXTENDED_REVISION: ${{ steps.version.outputs.revision }}
+          VITE_EXTENDED_ANDROID: '1'
         run: npm run build:mobile
       - name: Build the Android release APK
         working-directory: frontend/android
-        run: ./gradlew --no-daemon -PpersonalRevision="$GITHUB_RUN_NUMBER" testPersonalDebugUnitTest assemblePersonalRelease
+        env:
+          APP_EXTENDED_REVISION: ${{ steps.version.outputs.revision }}
+        run: ./gradlew --no-daemon -PextendedRevision="$APP_EXTENDED_REVISION" testExtendedDebugUnitTest assembleExtendedRelease
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: personal-unsigned
-          path: frontend/android/app/build/outputs/apk/personal/release/app-personal-release-unsigned.apk
+          name: extended-unsigned
+          path: frontend/android/app/build/outputs/apk/extended/release/app-extended-release-unsigned.apk
           compression-level: 0
           if-no-files-found: error
           retention-days: 1
@@ -85,10 +97,11 @@ jobs:
           log-accepted-android-sdk-licenses: false
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: personal-unsigned
+          name: extended-unsigned
       - name: Sign and verify the APK
         env:
           VERSION: ${{ needs.build.outputs.version }}
+          REVISION: ${{ needs.build.outputs.revision }}
           ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
@@ -101,10 +114,19 @@ jobs:
           trap 'rm -f -- "$key" "$aligned"' EXIT
           printf '%s' "$ANDROID_KEYSTORE_B64" | base64 --decode > "$key"
 
+          # The stored keystore may still use its original alias. Rename the entry
+          # in the temporary copy and verify the same certificate after signing.
+          if ! keytool -list -alias opengym-extended -keystore "$key" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD >/dev/null 2>&1; then
+            keytool -changealias -alias opengym-personal -destalias opengym-extended \
+              -keystore "$key" -storepass:env ANDROID_KEYSTORE_PASSWORD \
+              -keypass:env ANDROID_KEYSTORE_PASSWORD
+          fi
+
           mkdir signed
-          file="openGym-Personal-$VERSION.apk"
-          "$tools/zipalign" -P 16 -f 4 app-personal-release-unsigned.apk "$aligned"
-          "$tools/apksigner" sign --ks "$key" --ks-key-alias opengym-personal \
+          file="openGym-Extended-$VERSION.apk"
+          "$tools/zipalign" -P 16 -f 4 app-extended-release-unsigned.apk "$aligned"
+          "$tools/apksigner" sign --ks "$key" --ks-key-alias opengym-extended \
             --ks-pass env:ANDROID_KEYSTORE_PASSWORD --v4-signing-enabled false \
             --out "signed/$file" "$aligned"
           "$tools/zipalign" -c -P 16 4 "signed/$file"
@@ -112,20 +134,21 @@ jobs:
             grep -Fx 'Signer #1 certificate SHA-256 digest: 8cd52a3614766b3f4989912d67ceb65c6bbe5741d38988b6d5fea7c748a83299'
 
           badging=$("$tools/aapt2" dump badging "signed/$file")
-          code=$((1000000 + GITHUB_RUN_NUMBER))
+          code=$((1000000 + REVISION))
           grep -F "package: name='io.github.qrkks.opengym' versionCode='$code' versionName='$VERSION'" <<< "$badging"
           grep -F "uses-permission: name='android.permission.REQUEST_INSTALL_PACKAGES'" <<< "$badging"
           (cd signed && sha256sum "$file" > "$file.sha256" && sha256sum --check "$file.sha256")
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: opengym-personal-${{ needs.build.outputs.version }}
+          name: opengym-extended-${{ needs.build.outputs.version }}
           path: signed/
           compression-level: 0
           if-no-files-found: error
           retention-days: 14
 
   draft:
-    if: inputs.draft_release
+    name: Prepare the GitHub release
+    if: inputs.draft_release || github.event_name == 'push'
     needs: [build, sign]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -134,14 +157,25 @@ jobs:
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: opengym-personal-${{ needs.build.outputs.version }}
-      - name: Create the GitHub release draft
+          name: opengym-extended-${{ needs.build.outputs.version }}
+      - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          file="openGym-Personal-$VERSION.apk"
+          file="openGym-Extended-$VERSION.apk"
           sha256sum --check "$file.sha256"
-          gh release create "personal-v$VERSION" "$file" "$file.sha256" \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --latest \
-            --title "openGym Extended $VERSION" --notes "Signed Android APK for openGym Extended, built from $GITHUB_SHA."
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            [[ "$VERSION" == 1.4.5.7 ]]
+            gh api "repos/$GITHUB_REPOSITORY/contents/CHANGELOG.md?ref=$GITHUB_SHA" --jq '.content' |
+              base64 --decode |
+              awk -v heading="## v$VERSION " 'index($0, heading) == 1 { found=1; next } found && /^## / { found=0 } found { print }' > release-notes.md
+            grep -q '^-' release-notes.md
+            gh release create "extended-v$VERSION" "$file" "$file.sha256" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+              --title "openGym Extended $VERSION · Android 更新迁移" --notes-file release-notes.md
+          else
+            gh release create "extended-v$VERSION" "$file" "$file.sha256" \
+              --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --latest \
+              --title "openGym Extended $VERSION" --notes "Signed Android APK for openGym Extended, built from $GITHUB_SHA."
+          fi

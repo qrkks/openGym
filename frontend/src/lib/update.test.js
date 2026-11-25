@@ -128,10 +128,10 @@ describe('checkForUpdate', () => {
   })
 })
 
-describe('personal Android releases', () => {
+describe('extended Android releases', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_PERSONAL_ANDROID', '1')
+    vi.stubEnv('VITE_EXTENDED_ANDROID', '1')
   })
   afterEach(() => {
     vi.unstubAllEnvs()
@@ -139,15 +139,15 @@ describe('personal Android releases', () => {
   })
 
   const version = `${__APP_VERSION__.split('+')[0]}.1`
-  const assetName = `openGym-Personal-${version}.apk`
-  const download = `https://github.com/qrkks/openGym/releases/download/personal-v${version}/`
+  const assetName = `openGym-Extended-${version}.apk`
+  const download = `https://github.com/qrkks/openGym/releases/download/extended-v${version}/`
   const assets = [assetName, assetName + '.sha256'].map(name => ({ name, browser_download_url: download + name }))
   const serve = (tag_name, releaseAssets = assets) => vi.stubGlobal('fetch', vi.fn(async () => ({
     ok: true, json: async () => ({ tag_name, assets: releaseAssets }),
   })))
 
-  it('uses the fork and offers a newer personal revision with a matching APK and checksum', async () => {
-    serve(`personal-v${version}`, [{ name: 'other.apk' }, ...assets])
+  it('uses the fork and offers a newer extended revision with a matching APK and checksum', async () => {
+    serve(`extended-v${version}`, [{ name: 'other.apk' }, ...assets])
     const { checkForUpdate, RELEASES_PAGE } = await import('./update.js')
     expect(RELEASES_PAGE).toBe('https://github.com/qrkks/openGym/releases/latest')
     expect(await checkForUpdate()).toMatchObject({
@@ -156,14 +156,14 @@ describe('personal Android releases', () => {
     expect(fetch.mock.calls[0][0]).toBe('https://api.github.com/repos/qrkks/openGym/releases/latest')
   })
 
-  it('ignores upstream tags even when they are newer', async () => {
-    serve('v99.0.0')
+  it.each(['v99.0.0', 'personal-v99.0.0.1'])('ignores a newer tag outside the Extended channel (%s)', async (tag) => {
+    serve(tag)
     const { checkForUpdate } = await import('./update.js')
     expect(await checkForUpdate()).toMatchObject({ hasUpdate: false, apkUrl: null })
   })
 
-  it('does not offer a personal release without its checksum', async () => {
-    serve(`personal-v${version}`, assets.slice(0, 1))
+  it('does not offer a extended release without its checksum', async () => {
+    serve(`extended-v${version}`, assets.slice(0, 1))
     const { checkForUpdate } = await import('./update.js')
     expect(await checkForUpdate()).toMatchObject({ hasUpdate: false, hashUrl: null })
   })
