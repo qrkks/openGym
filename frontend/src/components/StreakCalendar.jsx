@@ -41,14 +41,15 @@ export function WeekMark ({ wk, entry, selected, onSelect }) {
  * record in `entry`) with what its week made of it and a way to the day itself, or the hint.
  * Read out when it changes.
  */
-export function WeekNote ({ wk, entry, day = null, onOpenDay }) {
+export function WeekNote ({ wk, entry, day = null, onOpenDay, onLogFreestyle }) {
   // A week judged by a rule picked later on says so (lib/streak-rule.js: never retroactive).
   const note = useStore(s => (wk && !day ? ruleNote(s.S, wk) : ''))
   return <div className="wk-note small" aria-live="polite" data-wk-note>
     {day
       ? <><span className="wk-note-g" aria-hidden="true"><span className="wk-ring miss" /></span>
         <span className="grow"><b>{fmtDate(day, true)}.</b> {explainMissedDay(entry)}
-          {onOpenDay && <button type="button" className="wk-note-a" onClick={() => onOpenDay(day)}>{t('Open this day')}</button>}</span></>
+          {onOpenDay && <button type="button" className="wk-note-a" onClick={() => onOpenDay(day)}>{t('Open this day')}</button>}
+          {onLogFreestyle && <button type="button" className="wk-note-a" onClick={() => onLogFreestyle(day)}>{t('Log a freestyle workout')}</button>}</span></>
       : wk && entry
         ? <><span className="wk-note-g" aria-hidden="true"><MarkGlyph s={entry.s} tag={entry.tag} /></span>
           <span><b>{t('Week of {0}', fmtDate(wk))}.</b> {explainWeek(entry)}{note ? <span className="wk-note-r"> {note}</span> : null}</span></>

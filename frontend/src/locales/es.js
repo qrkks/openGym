@@ -1,5 +1,11 @@
 // Spanish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Estadísticas deportivas",
+  "All sports": "Todos los deportes",
+  "Training days": "Días de entrenamiento",
+  "Monthly": "Mensual",
+  "No sport activities in this period": "No hay actividades deportivas en este período",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Relojes",
   "Set once": "Una sola vez",

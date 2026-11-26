@@ -166,6 +166,8 @@ export function convertStateUnit(S, to) {
   // bars (S.barDefaults) are kept per unit the same way. The load kinds (S.loadKind) and what a
   // dumbbell weight means (S.dbLoad) hold no weight.
   if (Array.isArray(S.routines)) out.routines = S.routines.map(r => ({ ...r, ex: (r.ex || []).map(convTarget) }))
+  if (S.scheduledWorkouts) out.scheduledWorkouts = Object.fromEntries(Object.entries(S.scheduledWorkouts)
+    .map(([day, plan]) => [day, Array.isArray(plan?.ex) ? { ...plan, ex: plan.ex.map(convTarget) } : plan]))
   if (Array.isArray(S.workouts)) out.workouts = S.workouts.map(convSession)
   if (S.active) out.active = convSession(S.active)
   return out

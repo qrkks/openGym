@@ -4,6 +4,25 @@ Newest first. Each release is a `## vX.Y.Z (YYYY-MM-DD)` section, and the releas
 GitHub and GitLab are that section, word for word. New work goes under `## Unreleased` until the
 tag. Write it for the people using the app: what changed for them, short, no em dashes.
 
+## v1.4.5.7 (2026-11-25)
+
+- Android now displays openGym Extended. The APK and its update channel use the Extended name.
+- If you installed the previous Android build, download and install the new APK over it once.
+  Your existing records stay on the device. Future updates are available in **Settings → About & updates**.
+
+## v1.4.5.6 (2026-11-25)
+
+**openGym Extended · 训练、运动与恢复**
+
+- Switch the Home calendar between week and month, including with a rotation plan. See your
+  planned and logged strength sessions, sports, and recovery on their dates.
+- Add a one-off strength workout with several exercises, or schedule a sport or recovery session
+  on a specific date. Set recurring sports by weekday.
+- Open a past date to log a freestyle workout and enter the exercises and sets you did.
+- Review this month's strength, sport, and recovery counts in Stats. See sport trends and streaks,
+  or filter recovery by type and date to review your sessions, time, and days.
+- Check for Android updates from the openGym Extended release channel.
+
 ## v1.4.5 (2026-11-14)
 
 **Apple Watch, redesigned and in step with the phone**

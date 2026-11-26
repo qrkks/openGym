@@ -13,7 +13,7 @@
 import { MOBILE } from './mobile.js'
 import { setOfflineBuild } from './build-caps.js'
 
-const NATIVE = new Set(['play', 'fdroid', 'offline'])
+const NATIVE = new Set(['play', 'fdroid', 'offline', 'extended'])
 
 // The Android answer also says whether this build may ask for background location: a Play build
 // made with -PplayWithoutBackgroundLocation (app/build.gradle, Google Play's plan B) can't, so it
@@ -45,9 +45,12 @@ export async function gymReminderBuilt() {
   return (await channelInfo()).gymReminder
 }
 
-// The in-app updater is for the sideloaded APK only.
+export function updatesInApp(channel) {
+  return channel === 'sideload' || channel === 'extended'
+}
+
 export async function selfUpdates() {
-  return (await getChannel()) === 'sideload'
+  return updatesInApp(await getChannel())
 }
 
 /** Whether the native (ML Kit) barcode scanner is in this build. The F-Droid build and openGym
@@ -56,7 +59,7 @@ export async function selfUpdates() {
 export async function nativeScanner() {
   if (!MOBILE) return false
   const c = await getChannel()
-  return c !== 'fdroid' && c !== 'offline'
+  return c !== 'fdroid' && c !== 'offline' && c !== 'extended'
 }
 
 /** Asks the shell once which build this is and sets lib/build-caps.js from it. main.jsx waits

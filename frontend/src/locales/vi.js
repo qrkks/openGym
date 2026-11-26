@@ -1,5 +1,11 @@
 // Vietnamese UI strings. Generated for openGym.
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Thống kê thể thao",
+  "All sports": "Tất cả môn thể thao",
+  "Training days": "Số ngày tập",
+  "Monthly": "Theo tháng",
+  "No sport activities in this period": "Không có hoạt động thể thao nào trong khoảng thời gian này",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Đồng hồ",
   "Set once": "Đặt một lần",

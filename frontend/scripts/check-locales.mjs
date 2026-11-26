@@ -31,6 +31,75 @@ const italianOnlyKeys = [
   'Your training data on the server could not be read. Contact the instance admin.'
 ]
 
+// The Extended UI ships translated in Simplified and Traditional Chinese. Other packs
+// can fall back to the English source for these keys while their translations are added.
+const extendedEnglishFallbackKeys = new Set([
+  "Strength training",
+  "Gym days",
+  "Home training days",
+  "Start time (optional)",
+  "End time",
+  "Also set the weekly schedule",
+  "No strength training",
+  "Planned sport",
+  "Planned recovery",
+  "Recovery logged",
+  "Schedule sport",
+  "Schedule recovery",
+  "Cancel this arrangement",
+  "Also scheduled every {0}",
+  "Sport logged",
+  "Record completion",
+  "Edit fixed days",
+  "Hide empty weekdays",
+  "Sport days",
+  "Sport sessions",
+  "{0} sport session",
+  "{0} sport sessions",
+  "{0} sport session this week",
+  "{0} sport sessions this week",
+  "{0} sport session total",
+  "{0} sport sessions total",
+  "Sport streak: {0} week",
+  "Sport streak: {0} weeks",
+  "Best: {0} week",
+  "Best: {0} weeks",
+  "At least one logged session each week. The current week stays open until it ends.",
+  "No records in this view",
+  "Workout type",
+  "Workout location",
+  "Gym workout",
+  "Home workout",
+  "At home",
+  "Location not set",
+  "Schedule a one-off workout",
+  "One-off workout",
+  "Remove scheduled workout?",
+  "The scheduled workout is no longer available.",
+  "Week view",
+  "Month view",
+  "Back to today",
+  "Day options",
+  "Search for exercise tutorials",
+  "Bilibili",
+  "Douyin",
+  "Exercise ID",
+  "Copy exercise ID",
+  "Search by name or ID",
+  "Log a freestyle workout",
+  "Tap a day to see its workouts or log a session.",
+  "Choose any exercises when you continue.",
+  "Recovery Statistics",
+  "Recovery type",
+  "All recovery types",
+  "Recovery sessions",
+  "Recovery days",
+  "{0} recovery session",
+  "{0} recovery sessions",
+  "No recovery sessions in this period",
+  "Workout heatmap (last 12 months)",
+])
+
 if (!files.length) {
   console.error(`No locale files found in ${localesDir}`)
   process.exit(1)
@@ -110,7 +179,8 @@ if (locales.has('it')) {
 }
 for (const [lang, dict] of locales) {
   const keys = new Set(Object.keys(dict))
-  const missing = union.filter(k => !keys.has(k))
+  const missing = union.filter(k => !keys.has(k) &&
+    (!extendedEnglishFallbackKeys.has(k) || lang === 'zh' || lang === 'zh-TW'))
   const orphans = union.filter(k => keys.has(k) && seen.get(k) === 1)
   // A blank value is worse than no translation: the English fallback only runs for a key that
   // is ABSENT, so an empty string reaches the screen as an empty screen.

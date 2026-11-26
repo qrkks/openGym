@@ -11,9 +11,21 @@ on:
     types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main, stores, watch]
+    # Use the iOS inputs from the pull-request gate for automatic builds.
     paths:
-      - 'frontend/**'
-      - '.github/workflows/ios.yml'
+      - 'frontend/ios/**'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - 'frontend/capacitor.config.json'
+      - 'frontend/src/lib/native*.js'
+      - 'frontend/src/lib/rest-alert.js'
+      - 'frontend/src/lib/watch-sync.js'
+      - 'frontend/src/lib/phone-workout.js'
+      - 'frontend/src/lib/health-sync.js'
+      - 'frontend/src/lib/widgets.js'
+      - 'frontend/src/lib/widget-links.js'
+      - 'frontend/src/lib/voice.js'
+      - 'frontend/src/lib/live-activity.js'
   workflow_dispatch:
     inputs:
       watch_only:

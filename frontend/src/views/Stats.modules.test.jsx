@@ -42,7 +42,7 @@ describe('Stats follows the modules', () => {
     expect(kpis()).toContain('Weight 30d')
     expect(host.querySelector('#stats-body [data-stats-links]')).toBeTruthy()
     expect(links()).toContain('Body measurements')
-    expect(host.querySelector('.kpis.two')).toBeFalsy()
+    expect(host.querySelector('.kpis-training.two')).toBeTruthy()
   })
 
   it('Just training: no Body, no Effort, no streak; Structural balance moves to the end of Lifts', () => {
@@ -51,7 +51,7 @@ describe('Stats follows the modules', () => {
     expect(parts()).toEqual(['Overview', 'Lifts', 'Effort'])
     expect(host.querySelector('#stats-body')).toBeFalsy()
     expect(kpis()).not.toContain('Weight 30d')
-    expect(host.querySelector('.kpis.two')).toBeTruthy()
+    expect(host.querySelector('.kpis-training.two')).toBeFalsy()
     expect(host.querySelector('#stats-lifts [data-stats-links]')).toBeTruthy()
     expect(links()).toEqual(['Structural balance', 'Journal', 'Tools'])
   })

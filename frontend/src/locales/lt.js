@@ -1,5 +1,17 @@
 // Lithuanian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "{0} sport sessions": {"one":"{0} sporto užsiėmimas","few":"{0} sporto užsiėmimai","many":"{0} sporto užsiėmimų","other":"{0} sporto užsiėmimo"},
+  "{0} sport sessions this week": {"one":"{0} sporto užsiėmimas šią savaitę","few":"{0} sporto užsiėmimai šią savaitę","many":"{0} sporto užsiėmimų šią savaitę","other":"{0} sporto užsiėmimo šią savaitę"},
+  "{0} sport sessions total": {"one":"Iš viso {0} sporto užsiėmimas","few":"Iš viso {0} sporto užsiėmimai","many":"Iš viso {0} sporto užsiėmimų","other":"Iš viso {0} sporto užsiėmimo"},
+  "Sport streak: {0} weeks": {"one":"Sporto serija: {0} savaitė","few":"Sporto serija: {0} savaitės","many":"Sporto serija: {0} savaičių","other":"Sporto serija: {0} savaitės"},
+  "Best: {0} weeks": {"one":"Rekordas: {0} savaitė","few":"Rekordas: {0} savaitės","many":"Rekordas: {0} savaičių","other":"Rekordas: {0} savaitės"},
+  "{0} recovery sessions": {"one":"{0} atsigavimo užsiėmimas","few":"{0} atsigavimo užsiėmimai","many":"{0} atsigavimo užsiėmimų","other":"{0} atsigavimo užsiėmimo"},
+  "Sport Statistics": "Sporto statistika",
+  "All sports": "Visos sporto šakos",
+  "Training days": "Treniruočių dienos",
+  "Monthly": "Kas mėnesį",
+  "No sport activities in this period": "Šiuo laikotarpiu nėra sporto veiklų",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Laikrodžiai",
   "Set once": "Nustatoma kartą",

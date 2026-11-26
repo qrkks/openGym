@@ -2,6 +2,12 @@
 export const metadata = { description: 'Diario personale di allenamento e peso corporeo' }
 
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Statistiche sportive",
+  "All sports": "Tutti gli sport",
+  "Training days": "Giorni di allenamento",
+  "Monthly": "Mensile",
+  "No sport activities in this period": "Nessuna attività sportiva in questo periodo",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Orologi",
   "Set once": "Da impostare una volta",

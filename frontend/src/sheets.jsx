@@ -14,7 +14,7 @@ import { activeGym, gymsOf, gymLabel, copyInventory, gymHasStack } from './lib/g
 import { autoGymHere } from './lib/gym-auto.js'
 import { withDayApart } from './lib/day-sessions.js'
 import { isoRun } from './lib/bidi.js'
-import { fmtDate, fmtClock, fmtDateRange, fmtNum, fmtPlate, exerciseNameText, fmtVol, fmtWeight, fmtDur, durPart, todayISO, isoOf, uid, exCount, routineCount, setsWorkCount, DAYN, DAYS, weekOrder, weekStartOf, weekKey, weekDayOffset, MONTHS_LONG, ACCENTS } from './lib/format.js'
+import { fmtDate, fmtClock, fmtDateRange, fmtNum, fmtPlate, exerciseNameText, fmtVol, fmtWeight, fmtDur, todayISO, isoOf, uid, exCount, routineCount, setsWorkCount, DAYN, DAYS, weekOrder, weekStartOf, weekKey, weekDayOffset, MONTHS_LONG, ACCENTS } from './lib/format.js'
 import { fmtSec, lastEntryFor, bestWeightFor, bestWeightForEntry, buildSets, effectiveRoutineIds, workoutDay, workoutVolume, sessionVolume, countsWarmups, setsDone, setsDoneActive, setUnitsTotal, lastBW, sessionSections, setLabel, defaultConfig, pickedExerciseConfig, cleanupSg, modeOf, effortOf, EFFORT, capEffort, stepEffort, isBw, isPerSide, sideReps, workSetsDone, applyIntensifierPlan, MAX_PLANNED_WARMUPS, NOTE_MAX, exLine } from './lib/history.js'
 import { usesBar, hasBarOverride, isNoBar, barTypeWeight, ownBarDefault, barPicks, withBarDefault, withStandardBars, defaultBarWeight, BAR_TYPES } from './lib/bar.js'
 import { plateSizesFor, isPlateSize, isStandardPlate, withoutPlateSize, DEFAULT_PAIRS, pairsOf, ownsPlates, withPlatePairs, withStandardPlates, withLoadKind, loadKindFor, baseWeightFor, dropGrid } from './lib/plates.js'
@@ -38,6 +38,7 @@ import DateField from './components/DateField.jsx'
 import { durationSheet } from './components/DurationWheel.jsx'
 import { cleanBackups, cleanBackupConfigs, withBackups, MAX_BACKUPS, backupSlotConfig } from './lib/routine-backups.js'
 import { replaceSlotExercise } from './lib/routines.js'
+import { cleanFolder } from './lib/routine-folders.js'
 import KitChips from './components/KitChips.jsx'
 import { normalizeAliases } from './lib/exercise-aliases.js'
 import ExerciseAliasesEditor, { ExerciseAliasesField, ExerciseAliasesLink } from './components/ExerciseAliases.jsx'
@@ -102,6 +103,8 @@ import { entryTimes } from './lib/exercise-time.js'
 import { saveSessionAsRoutine, routineFromSession, routineAdditions, addToRoutine } from './lib/session-routines.js'
 import { shareRoutineSheet } from './components/RoutineShare.jsx'
 import { youtubeSearchUrl } from './lib/youtube.js'
+import { chineseTutorialQuery, tutorialWebUrl, openAndroidTutorialSearch } from './lib/exercise-tutorials.js'
+import { platformNow } from './lib/platform-now.js'
 import { openExternal } from './components/CustomMedia.jsx'
 import { repeatSessionEntries } from './lib/session-repeat.js'
 import { swapActiveExercise } from './lib/active-exercise-swap.js'
@@ -117,7 +120,9 @@ import { joinSessionNoProg } from './lib/session-noprog.js'
 import { buildCombinedEntries, deriveSessionName } from './lib/session-merge.js'
 import { leadEntries } from './lib/leftovers.js'
 import { workoutsOn, backfillStart, backfillEnd, completeBackfill, historyAsOf, sessionHistory } from './lib/backfill.js'
-import { moveWorkout, sameWorkout, startTimeOf, durationMinOf, setWorkoutDuration, rebuildPrHistory, MAX_DURATION_MIN, endsInFuture } from './lib/workout-date.js'
+import { moveWorkout, sameWorkout, startTimeOf, durationMinOf, setWorkoutDuration, rebuildPrHistory, MAX_DURATION_MIN, endsInFuture, legacySyncKey } from './lib/workout-date.js'
+import { WORKOUT_LOCATION_LABELS, workoutLocationOf, workoutLocationsByDay, setActiveWorkoutLocation, normalizeWorkoutLocation, isKnownWorkoutLocation, plannedWorkoutLocation } from './lib/workout-location.js'
+import { WorkoutLocationField, WorkoutLocationLegend } from './components/WorkoutLocation.jsx'
 import { editCompletedSession, editLeftEmpty, editedRecord, editChangesNothing } from './lib/session-edit.js'
 import { stampWorkout } from './lib/sync-merge.js'
 import { hrLabel } from './lib/heart-rate.js'
@@ -127,10 +132,14 @@ import ShareWorkout from './components/ShareWorkout.jsx'
 import { streakInfo } from './lib/streak.js'
 import { streakWeeks } from './lib/streak-explain.js'
 import { gymNoteText, withGymNote } from './lib/journal.js'
-import { recoveryDays, recoveryOn } from './lib/recovery-sessions.js'
+import { recoveryDays, recoveryOn, RECOVERY_KINDS, RECOVERY_ICON, RECOVERY_LABEL } from './lib/recovery-sessions.js'
 import { recoverySheet, RecoveryRow } from './components/RecoverySheet.jsx'
-import { activityDays, activitiesOn } from './lib/activities.js'
+import { workoutTimeParts } from './lib/session-time.js'
+import { activityDays, activitiesOn, SPORT_ICON, SPORT_LABEL, SPORTS } from './lib/activities.js'
 import { activitySheet, ActivityRow } from './components/ActivitySheet.jsx'
+import { sportsOnWeekday, withPlannedSport } from './lib/sport-plan.js'
+import { datedActivitiesOn, plannedSportsOn, withDatedActivity } from './lib/dated-activity-plan.js'
+import { scheduledWorkoutOf, completedScheduledWorkout, withScheduledWorkout } from './lib/scheduled-workouts.js'
 import { StreakSummary, StreakLegend, WeekMark, WeekNote } from './components/StreakCalendar.jsx'
 import { copyText } from './lib/clipboard.js'
 import { queueRemaining, pinState } from './lib/queue.js'
@@ -253,6 +262,40 @@ export function menuSheet(opts) {
   ui().openSheet(close => <MenuSheet {...opts} close={close} />)
 }
 
+function ExerciseTutorialMenu({ ex, youtubeUrl, close }) {
+  const [names, setNames] = useState(null)
+  useEffect(() => {
+    let active = true
+    import('./exercise-names/zh.js').then(pack => {
+      if (active) setNames(pack.default)
+    }, () => {
+      if (active) setNames({})
+    })
+    return () => { active = false }
+  }, [])
+
+  const open = provider => {
+    const query = chineseTutorialQuery(ex, names)
+    const openWeb = () => openExternal(tutorialWebUrl(provider, query))
+    if (platformNow() !== 'android') {
+      openWeb()
+      return
+    }
+    openAndroidTutorialSearch(provider, query).then(opened => { if (!opened) openWeb() })
+  }
+
+  return <MenuSheet close={close} title={t('Search for exercise tutorials')} items={[
+    { icon: 'play', label: t('Bilibili'), disabled: names === null, onClick: () => open('bilibili') },
+    { icon: 'play', label: t('Douyin'), disabled: names === null, onClick: () => open('douyin') },
+    { icon: 'play', label: 'YouTube', onClick: () => openExternal(youtubeUrl) },
+  ]} />
+}
+
+export function exerciseTutorialSheet(ex) {
+  const youtubeUrl = youtubeSearchUrl(ex)
+  if (youtubeUrl) ui().openSheet(close => <ExerciseTutorialMenu ex={ex} youtubeUrl={youtubeUrl} close={close} />)
+}
+
 // Themed replacement for window.confirm — callback-based (no blocking).
 export function confirmSheet(opts) {
   ui().openSheet(close => <ConfirmDialog {...opts} close={close} />, { kind: 'center', ...(opts.locked ? { locked: true } : {}) })
@@ -273,14 +316,16 @@ const PLAN_COPY = {
   hotel: () => ({ name: t('Hotel room'), about: t('Twenty-five minutes between the bed and the desk chair.') })
 }
 
-// Adds the plan's routines (reusing one you already have under the same name) and puts them on
-// its weekdays. Existing routines are never touched
-// and only the weekdays the plan asks for are reassigned; an id with no plan behind it changes
+// Adds or reuses the plan's routines and can also assign them to the suggested weekdays.
+// Existing routines are kept, and only the weekdays in the plan are reassigned; an id with no plan behind it changes
 // nothing at all. planId is deliberately required — a default invites `onClick={loadStarterPlan}`,
 // which hands the click event in as the plan and silently loads nothing.
-export function loadStarterPlan(planId, profile) {
+export function loadStarterPlan(planId, profile, { assignWeek = true } = {}) {
   const plan = buildStarterPlan(planId, profile ? profileEquipment(profile) : undefined, profileMachines(profile))
   if (!plan) return false
+  const name = PLAN_COPY[planId]().name
+  const folder = cleanFolder(name)
+  const workoutLocation = AWAY_PLANS.includes(planId) ? 'home' : 'gym'
   update(st => {
     // Loading the same plan again reuses the routines it added last time (same name, same
     // exercises) for the weekdays instead of a second Upper A, Lower A, ... under the same names.
@@ -290,41 +335,59 @@ export function loadStarterPlan(planId, profile) {
     plan.routines.forEach(r => {
       const have = st.routines.find(x => x.name === r.name && sameLift(x, r))
       if (have) idOf[r.id] = have.id
-      else { st.routines.push(r); idOf[r.id] = r.id }
+      else { st.routines.push({ ...r, folder, workoutLocation }); idOf[r.id] = r.id }
     })
-    plan.schedule.forEach(({ day, routineId }) => { st.week[day] = [idOf[routineId]] })
+    if (assignWeek) plan.schedule.forEach(({ day, routineId }) => { st.week[day] = [idOf[routineId]] })
   })
-  if (plan.fit) toast(t('{0} loaded, fitted to "{1}": {2} swapped, {3} dropped', PLAN_COPY[planId]().name, profile.name, plan.fit.swapped, plan.fit.dropped))
-  else toast(t('{0} loaded', PLAN_COPY[planId]().name))
+  if (plan.fit) toast(t('{0} loaded, fitted to "{1}": {2} swapped, {3} dropped', name, profile.name, plan.fit.swapped, plan.fit.dropped))
+  else toast(t('{0} loaded', name))
   return true
 }
 
 // Intl joins the days the way each language does it — "and" vs "und", "、" in Chinese.
 const dayList = days => new Intl.ListFormat(dateLocale()).format(days.map(d => t(DAYN[d])))
 
+const STARTER_SCHEDULE_KEY = 'gym_starter_assign_week'
+
 function StarterPlanChooser({ close }) {
   const week = useStore(s => s.S.week)
   const routines = useStore(s => s.S.routines)
   const profiles = useStore(s => s.S.equipProfiles) || []
+  const [assignWeek, setAssignWeek] = useState(() => {
+    try { return localStorage.getItem(STARTER_SCHEDULE_KEY) !== 'false' }
+    catch { return true }
+  })
+  const scheduleLabel = t('Also set the weekly schedule')
   // Fitting starts on for the profile you already filter by; '' leaves the plan as written.
   const [fitId, setFitId] = useState(() => activeProfile(useStore.getState().S)?.id || '')
   const fit = profiles.find(p => p.id === fitId) || null
   const choose = (id, name) => {
-    const days = starterPlanDays(id)
+    const load = () => {
+      if (!loadStarterPlan(id, fit, { assignWeek })) return
+      try { localStorage.setItem(STARTER_SCHEDULE_KEY, String(assignWeek)) }
+      catch { /* Loading still works if local preferences are unavailable. */ }
+    }
     close()
+    if (!assignWeek) { load(); return }
+    const days = starterPlanDays(id)
     // A confirmation is only worth showing when one of those days is actually occupied — by a
     // routine that still exists, not by a stale id the Plan already shows as "Rest".
     const taken = day => [].concat(week[day] || []).some(id => routines.some(r => r.id === id))
-    if (!days.some(taken)) { loadStarterPlan(id, fit); return }
+    if (!days.some(taken)) { load(); return }
     confirmSheet({
       title: t('Load {0}?', name),
       message: t('The new plan goes on {0}. Your existing routines stay; only those days of the weekly plan change.', dayList(days)),
       confirmText: t('Load plan'),
-      onConfirm: () => loadStarterPlan(id, fit)
+      onConfirm: load
     })
   }
   return <>
     <h3>{t('Choose starter plan')}</h3>
+    <div className="sect-b" style={{ marginBottom: 10 }}>
+      <Row icon="calendar" title={scheduleLabel}>
+        <Switch checked={assignWeek} onChange={setAssignWeek} aria-label={scheduleLabel} />
+      </Row>
+    </div>
     {profiles.length > 0
       ? <div className="chips" style={{ margin: '0 0 10px' }}>
           <div className="small dim" style={{ width: '100%' }}>{t('Fit to my equipment')}</div>
@@ -400,8 +463,9 @@ function WeightInput({ value, setValue, unit }) {
 // A weigh-in has a time (#859): a day can hold several, and the profile's daily value
 // (Settings → Units, lib/weigh-ins.js) picks the one the charts and the trend use. `edit` opens
 // one weigh-in ({ d, id }) to change; `initial` is a weight an assistant heard (lib/voice.js).
-function BwSheet({ required, onDone, close, initial, edit }) {
+function BwSheet({ required, onDone, close, initial, edit, plannedLocation }) {
   const st = useStore(s => s.S)
+  const [location, setLocation] = useState(null)
   const unit = st.unit
   const bw = lastBW(st)
   const editing = useMemo(() => (edit ? readingsOf(st.bodyweight.find(b => b.d === edit.d)).find(r => r.id === String(edit.id)) || null : null), []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -424,7 +488,7 @@ function BwSheet({ required, onDone, close, initial, edit }) {
       else addWeighIn(s, { d: date, at, w: n })
     })
     close()
-    if (onDone) onDone(n); else toast(editing ? t('Weigh-in updated') : t('Weight saved'))
+    if (onDone) onDone(n, location); else toast(editing ? t('Weigh-in updated') : t('Weight saved'))
   }
   const recent = useMemo(() => allReadings(st.bodyweight).reverse().slice(0, 3), [st.bodyweight])
   return <>
@@ -454,10 +518,11 @@ function BwSheet({ required, onDone, close, initial, edit }) {
           </label>
         </div>}
     <WeightInput value={v} setValue={setV} unit={unit} />
+    {required && <WorkoutLocationField value={location ?? normalizeWorkoutLocation(plannedLocation ?? st.lastWorkoutLocation)} onChange={setLocation} />}
     <div style={{ height: 14 }} />
     <Button variant="primary" onClick={save}>{required ? t('Save & start workout') : t('Save')}</Button>
     {required && <>
-      <div style={{ height: 8 }} /><Button variant="ghost" className="dim" onClick={() => { close(); onDone && onDone(null) }}>{t('Start without weighing in')}</Button>
+      <div style={{ height: 8 }} /><Button variant="ghost" className="dim" onClick={() => { close(); onDone && onDone(null, location) }}>{t('Start without weighing in')}</Button>
       <div style={{ height: 2 }} /><Button variant="ghost" className="dim" icon="swap" onClick={() => closeThenNav(close, '/workout')}>{t('Choose a different workout')}</Button>
     </>}
     {!required && !editing && recent.length > 0 && <>
@@ -1573,6 +1638,11 @@ function ExerciseDetail({ ex, close }) {
         return <span key={tg.key} className={'tag' + (tg.acc ? ' acc' : '')}>{tg.icon && <Icon name={tg.icon} />}{tg.label}</span>
       })}
     </div>
+    <button type="button" className="tag exercise-id" title={t('Copy exercise ID')}
+      aria-label={t('Copy exercise ID') + ' ' + ex.id}
+      onClick={async () => useUI.getState().toast(await copyText(String(ex.id)) ? t('Copied') : t('Could not copy'))}>
+      {t('Exercise ID')} <bdi>{ex.id}</bdi> <Icon name="copy" />
+    </button>
     <ExerciseAliasesEditor key={ex.id} ex={ex} />
     {/* Your own photo or video on a built-in exercise (#259, #534): shown instead of the animation
         or beside it, private to your account (components/OwnExerciseMedia.jsx). */}
@@ -1611,9 +1681,8 @@ function ExerciseDetail({ ex, close }) {
         stronger (issue #232). Cardio has none for the same kind of reason. */}
     {!isCardio(ex) && !isAssisted(ex) && <OneRM ex={ex} />}
     {instrFor(ex).length > 0 &&<><h4 className="sec">{t('How to')}{getLang() !== 'en' && !instrTranslated(ex) && <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}> · {t('instructions in English')}</span>}</h4><ol className="steps-list">{instrFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ol></>}
-    {/* A YouTube search for the exercise, opened after the tap and only then (lib/youtube.js). A
-        video link of the exercise's own stays first, in the media above. */}
-    {youtubeSearchUrl(ex) && <Button variant="ghost" icon="play" style={{ marginTop: 6 }} onClick={() => openExternal(youtubeSearchUrl(ex))}>{t('Watch on YouTube')}</Button>}
+    {youtubeSearchUrl(ex) && <Button variant="ghost" icon="play" style={{ marginTop: 6 }}
+      onClick={() => exerciseTutorialSheet(ex)}>{t('Search for exercise tutorials')}</Button>}
     {/* The community library: where a copy came from, and tips from people on this server. */}
     <CommunityBits ex={ex} />
     {/* The catalogue is community-edited (catalogue/README.md): a wrong muscle, a clumsy step or a
@@ -2119,7 +2188,7 @@ function ExercisePicker({ onPick, title, close, like, actionIcon, backups, askCo
     {/* .picker-search is what index.css keys the keyboard-aware sheet layout on: the sheet
         lifts above the keys and the search stays put while the list scrolls under it. */}
     <div className="picker-search"><div className="search-row"><div className={'search' + (narrowed ? ' has-count' : '') + (q ? ' has-clear' : '')}><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-      <input ref={searchRef} className="input" placeholder={t('Search {0} exercises…', all.length)} value={q} onFocus={onSearchFocus} onChange={e => { setQ(e.target.value); setShown(50) }} />
+      <input ref={searchRef} className="input" placeholder={t('Search by name or ID')} value={q} onFocus={onSearchFocus} onChange={e => { setQ(e.target.value); setShown(50) }} />
       {narrowed && <span className="search-count" role="status" aria-label={exCount(f.length)}>{fmtNum(f.length)}</span>}
       {q && <button className="clear" onClick={() => { setQ(''); setShown(50) }} aria-label={t('Clear')}><Icon name="xmark" /></button>}</div>
       <ExerciseViewToggle /></div></div>
@@ -3228,8 +3297,7 @@ function EffortPicker({ kind, value, onPick, close, cardio = false }) {
   // The exact field used to write through on every change, and onPick concludes the set (issue
   // #64): it ticks the set, beeps and starts the rest. Since stepEffort(kind, null, 1) returns
   // the band's minimum, one tap of + — or typing the `1` of `10` — was a committed rating, fired
-  // under the sheet you were still typing into, and on the last set of the last exercise it
-  // stacked workoutCompleteSheet on top of the picker. So typing moves the mirror only, and the
+  // under the sheet you were still typing into. Typing moves the mirror only, and the
   // rating is written once, when the sheet goes away: Done, the backdrop, a swipe or Escape all
   // unmount this. A preset row still commits on the spot, which is what makes it one tap.
   const typed = useRef(value ?? null)
@@ -3376,6 +3444,10 @@ function PlanImport({ bundle, close }) {
 /* ============================ day override / assign ============================ */
 function DayOverride({ iso, close }) {
   const st = useStore(s => s.S)
+  const today = todayISO()
+  const workouts = workoutsOn(st, iso)
+  const scheduled = scheduledWorkoutOf(st, iso)
+  const scheduledDone = completedScheduledWorkout(st, scheduled)
   const hasOvr = st.dayPlan[iso] !== undefined
   // A fulfilled pin (a coach session pinned here and since done) reads as no override, as it does
   // everywhere else — the row to clear the leftover entry stays.
@@ -3391,14 +3463,17 @@ function DayOverride({ iso, close }) {
   // A planned day in the past with nothing logged was missed — or trained and never logged,
   // like a run you forgot to start the app for (#284). Logging it opens "Log a past workout" on
   // that date with the day's routines picked, where the time and the duration can still change.
-  const missed = iso < todayISO() && effIds.length > 0 && !workoutsOn(st, iso).length
+  const missed = iso < today && effIds.length > 0 && !workouts.length
   const logIt = () => { close(); logPastWorkoutSheet({ iso, routineIds: effIds }) }
+  const logFreestyle = () => { close(); logPastWorkoutSheet({ iso }) }
   // A note on a day off (#261, lib/day-notes.js): offered on today and past days with nothing
   // logged, kept in view on any day that already has one. Quiet on purpose: a row, not a button.
   const note = dayNoteOf(st, iso)
   const recs = recoveryOn(st, iso)
   const acts = activitiesOn(st, iso)
-  const canNote = !!note || (canNoteDay(iso) && !workoutsOn(st, iso).length)
+  const pendingSports = plannedSportsOn(st, iso).filter(sport => !acts.some(a => a.sport === sport))
+  const pendingRecovery = datedActivitiesOn(st, iso, 'recovery').filter(kind => !recs.some(r => r.kind === kind))
+  const canNote = !!note || (canNoteDay(iso) && !workouts.length)
   // The coach week's sessions still to do come first, in slot order: picking one here pins it
   // to this day — the same per-date override, read back by queueNext (lib/queue.js). A session
   // already pinned to another day says so in place of its exercise count. Done sessions and
@@ -3423,7 +3498,24 @@ function DayOverride({ iso, close }) {
   return <>
     <h3>{fmtDate(iso, true)}</h3>
     <div className="muted small" style={{ marginBottom: 12 }}>{t('Weekly plan:')} {weeklyNames.length ? deriveSessionName(weeklyNames) : t('Rest')}{changed && <span style={{ color: 'var(--orange-ink)' }}> · {t('changed for this day')}</span>}<br />{t('Sick, missed a day or want a different session? Pick what to train instead.')}</div>
-    {missed && <div style={{ marginBottom: 14 }}><Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button></div>}
+    {iso <= today && <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+      {missed && <Button variant="primary" icon="checkCircle" onClick={logIt}>{t('Log this workout')}</Button>}
+      <Button variant={missed ? 'tinted' : 'primary'} icon="shuffle" onClick={logFreestyle}>{t('Log a freestyle workout')}</Button>
+    </div>}
+    {(scheduled || iso >= today) && <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+      {scheduled && <Row icon="dumbbell" title={scheduled.name} subtitle={exCount(scheduled.ex.length)}
+        accessory="chevron" value={scheduledDone ? t('Done') : undefined} onClick={() => scheduledWorkoutSheet(iso)} />}
+      {!scheduled && <Button variant="tinted" icon="plus" onClick={() => scheduledWorkoutSheet(iso)}>{t('Schedule a one-off workout')}</Button>}
+      {scheduled && !scheduledDone && iso === today && <Button icon="play" variant="tinted"
+        onClick={() => startScheduledWorkout(iso, close)}>{t('Start workout')}</Button>}
+      {iso >= today && <>
+        <Button variant="tinted" icon="figureRun" onClick={() => datedActivitySheet(iso, 'sport')}>{t('Schedule sport')}</Button>
+        <Button variant="tinted" icon="sparkles" onClick={() => datedActivitySheet(iso, 'recovery')}>{t('Schedule recovery')}</Button>
+      </>}
+    </div>}
+    {workouts.length > 0 && <div className="list" style={{ marginBottom: 14 }}>
+      {workouts.map(w => <WorkoutRow key={w.id} w={w} onClick={() => { close(); workoutDetailSheet(w) }} />)}
+    </div>}
     {canNote && <div className="day-note" style={{ marginBottom: 14 }}>
       <div className="item day-note-row" {...tappable(() => dayNoteSheet(iso))}>
         <span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name={note?.tag ? DAY_NOTE_ICON[note.tag] : 'note'} /></span>
@@ -3434,8 +3526,13 @@ function DayOverride({ iso, close }) {
       </div>
     </div>}
     {/* Activities on this day (lib/activities.js): a run, a match. Logged by hand here too. */}
-    {(acts.length > 0 || iso <= todayISO()) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
+    {(acts.length > 0 || pendingSports.length > 0 || iso <= todayISO()) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
       {acts.map(a => <ActivityRow key={a.id} a={a} showDate={false} />)}
+      {pendingSports.map(sport => <Row key={sport} icon={SPORT_ICON[sport]} title={t(SPORT_LABEL[sport])}
+        subtitle={t(iso > todayISO() ? 'Planned sport' : 'Record completion')}
+        accessory="chevron" onClick={iso > today
+          ? () => plannedActivityOptionsSheet(iso, 'sport', sport)
+          : () => { close(); activitySheet({ day: iso, sport }) }} />)}
       {iso <= todayISO() && <div className="item act-row" {...tappable(() => { close(); activitySheet({ day: iso }) })}>
         <span className="lrow-i act-i" aria-hidden="true"><Icon name="figureRun" /></span>
         <div className="grow"><div className="tt">{t('Log an activity')}</div><div className="ss">{t('A run, a ride, a match')}</div></div>
@@ -3443,9 +3540,14 @@ function DayOverride({ iso, close }) {
       </div>}
     </div>}
     {/* Recovery sessions on this day (lib/recovery-sessions.js), and a way to log one on a past day or today. */}
-    {(recs.length > 0 || iso <= todayISO()) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
+    {(recs.length > 0 || pendingRecovery.length > 0 || iso <= today) && <div className="day-note day-recov" style={{ marginBottom: 14 }}>
       {recs.map(r => <RecoveryRow key={r.id} r={r} showDate={false} />)}
-      {iso <= todayISO() && <div className="item rec-row" {...tappable(() => { close(); recoverySheet({ day: iso }) })}>
+      {pendingRecovery.map(kind => <Row key={kind} icon={RECOVERY_ICON[kind]} title={t(RECOVERY_LABEL[kind])}
+        subtitle={t(iso > today ? 'Planned recovery' : 'Record completion')}
+        accessory="chevron" onClick={iso > today
+          ? () => plannedActivityOptionsSheet(iso, 'recovery', kind)
+          : () => { close(); recoverySheet({ day: iso, kind }) }} />)}
+      {iso <= today && <div className="item rec-row" {...tappable(() => { close(); recoverySheet({ day: iso }) })}>
         <span className="lrow-i rec-i" aria-hidden="true"><Icon name="sparkles" /></span>
         <div className="grow"><div className="tt">{t('Log recovery')}</div><div className="ss">{t('Sauna, ice bath, massage, mobility')}</div></div>
         <Icon name="plus" className="chev" />
@@ -3463,6 +3565,148 @@ function DayOverride({ iso, close }) {
   </>
 }
 export const dayOverrideSheet = iso => ui().openSheet(close => <DayOverride iso={iso} close={close} />)
+
+const DATED_ACTIVITY_OPTIONS = {
+  sport: { title: 'Schedule sport', kinds: SPORTS, labels: SPORT_LABEL, icons: SPORT_ICON },
+  recovery: { title: 'Schedule recovery', kinds: RECOVERY_KINDS, labels: RECOVERY_LABEL, icons: RECOVERY_ICON },
+}
+
+export function plannedActivityOptionsSheet(iso, type, kind) {
+  const state = S()
+  const today = todayISO()
+  const weekday = new Date(iso + 'T12:00:00').getDay()
+  const oneOff = datedActivitiesOn(state, iso, type).includes(kind)
+  const weekly = type === 'sport' && sportsOnWeekday(state, weekday).includes(kind)
+  if (!oneOff && !weekly) return
+
+  const record = () => type === 'sport' ? activitySheet({ day: iso, sport: kind }) : recoverySheet({ day: iso, kind })
+  const cancel = () => {
+    if (iso < todayISO() || !datedActivitiesOn(S(), iso, type).includes(kind)) return
+    update(s => { s.datedActivityPlan = withDatedActivity(s.datedActivityPlan, iso, type, kind, false) })
+    ui().toast(t('Removed'), {
+      action: t('Undo'),
+      onAction: () => update(s => {
+        if (iso >= todayISO() && !datedActivitiesOn(s, iso, type).includes(kind)) {
+          s.datedActivityPlan = withDatedActivity(s.datedActivityPlan, iso, type, kind, true)
+        }
+      }),
+    })
+  }
+  menuSheet({
+    title: t(DATED_ACTIVITY_OPTIONS[type].labels[kind]),
+    subtitle: fmtDate(iso, true, true),
+    items: [
+      iso <= today && { icon: 'checkCircle', label: t('Record completion'), onClick: record },
+      oneOff && iso >= today && {
+        icon: 'xmark', danger: true, label: t('Cancel this arrangement'),
+        sub: weekly ? t('Also scheduled every {0}', t(DAYN[weekday])) : undefined, onClick: cancel,
+      },
+      weekly && iso >= today && {
+        icon: 'calendar', label: t('Edit fixed days'), sub: t('Every {0}', t(DAYN[weekday])), onClick: () => dayAssignSheet(weekday),
+      },
+    ],
+  })
+}
+
+function DatedActivityPlan({ iso, type, close }) {
+  const { title, kinds, labels, icons } = DATED_ACTIVITY_OPTIONS[type]
+  const [initial] = useState(() => datedActivitiesOn(S(), iso, type))
+  const [selected, setSelected] = useState(initial)
+  const toggle = kind => setSelected(list => list.includes(kind) ? list.filter(x => x !== kind) : [...list, kind])
+  const save = () => {
+    if (iso < todayISO()) { close(); return }
+    const changes = kinds.filter(kind => selected.includes(kind) !== initial.includes(kind))
+    if (changes.length) update(s => {
+      s.datedActivityPlan = changes.reduce((plan, kind) =>
+        withDatedActivity(plan, iso, type, kind, selected.includes(kind)), s.datedActivityPlan)
+    })
+    close()
+    if (changes.length) toast(t('Saved'))
+  }
+  return <>
+    <h3>{t(title)}</h3>
+    <div className="small muted" style={{ marginBottom: 12 }}>{fmtDate(iso, true, true)}</div>
+    <div className="chips rec-kinds" role="group" aria-label={t(title)} style={{ marginBottom: 16, flexWrap: 'wrap' }}>
+      {kinds.map(kind => {
+        const on = selected.includes(kind)
+        return <button key={kind} type="button" aria-pressed={on} onClick={() => toggle(kind)}
+          className={'chip nocap ichip' + (on ? ' on' : '')}><Icon name={icons[kind]} />{t(labels[kind])}</button>
+      })}
+    </div>
+    <Button variant="primary" icon="check" onClick={save}>{t('Save')}</Button>
+  </>
+}
+const datedActivitySheet = (iso, type) => ui().openSheet(close => <DatedActivityPlan iso={iso} type={type} close={close} />)
+
+function ScheduledWorkout({ iso, close }) {
+  const st = useStore(s => s.S)
+  const planned = scheduledWorkoutOf(st, iso)
+  const [id] = useState(() => planned?.id || uid())
+  const [initialStamp] = useState(() => planned?._ts)
+  const [name, setName] = useState(() => planned?.name || t('One-off workout'))
+  const [location, setLocation] = useState(() => workoutLocationOf(planned))
+  const [exercises, setExercises] = useState(() => planned?.ex || [])
+  const canEdit = iso >= todayISO() && !completedScheduledWorkout(st, planned) && st.active?.scheduledWorkoutId !== id
+  const editExercise = (ex, index = exercises.length) => {
+    const existing = exercises[index]
+    exConfigSheet(ex, existing, cfg => {
+      setExercises(list => {
+        const next = [...list]
+        next[index] = { ...cfg, id: ex.id }
+        return next
+      })
+    }, existing ? () => setExercises(list => list.filter((_, i) => i !== index)) : null,
+    null, null, null, existing ? t('Save') : t('Add exercise'), { freestyle: 'add' })
+  }
+  const save = value => {
+    const latest = S()
+    const current = scheduledWorkoutOf(latest, iso)
+    if (iso < todayISO() || latest.active?.scheduledWorkoutId === id || completedScheduledWorkout(latest, current)) return
+    if ((current && current.id !== id) || current?._ts !== initialStamp) {
+      close()
+      toast(t('The scheduled workout is no longer available.'))
+      return
+    }
+    update(s => { s.scheduledWorkouts = withScheduledWorkout(s.scheduledWorkouts, iso, value) })
+    close()
+    toast(t(value ? 'Saved' : 'Removed'))
+  }
+  const addExercise = () => exercisePicker((ex, quick) => {
+    if (!quick) { editExercise(ex); return }
+    const config = pickedExerciseConfig(ex.id, undefined, S())
+    setExercises(list => [...list, { ...config, id: ex.id }])
+    toast(t('“{0}” added to {1}', exerciseNameText(ex), name || t('One-off workout')))
+  })
+  return <>
+    <h3>{t(planned ? 'One-off workout' : 'Schedule a one-off workout')}</h3>
+    <div className="muted small" style={{ marginBottom: 12 }}>{fmtDate(iso, true, true)}</div>
+    {canEdit ? <TextField aria-label={t('Name')} value={name} maxLength={80} onChange={e => setName(e.target.value)} />
+      : <div className="tt">{name}</div>}
+    {canEdit ? <WorkoutLocationField value={location} onChange={setLocation} />
+      : isKnownWorkoutLocation(location) && <Row icon="mapPin" title={t('Workout location')} value={t(WORKOUT_LOCATION_LABELS[location])} />}
+    <div className="list" style={{ marginBlock: 12 }}>
+      {exercises.map((cfg, i) => {
+        const ex = exOr(cfg.id)
+        const view = exView(st, cfg.id)
+        return <Row key={i} icon="dumbbell" title={exerciseNameFor(ex)}
+          subtitle={exLine(viewTarget(st, cfg.id, cfg), view.unit, speedUnitOf(view))}
+          accessory={canEdit ? 'chevron' : undefined} onClick={canEdit ? () => editExercise(ex, i) : undefined} />
+      })}
+    </div>
+    {canEdit && <div className="list">
+      <Button icon="plus" onClick={addExercise}>{t('Add exercise')}</Button>
+      <Button variant="primary" disabled={!exercises.length}
+        onClick={() => save({
+          id, name: name.trim() || t('One-off workout'), ex: exercises,
+          ...(isKnownWorkoutLocation(location) ? { workoutLocation: location } : {}),
+        })}>{t('Save')}</Button>
+      {planned && <Button variant="ghost" icon="trash" onClick={() => confirmSheet({
+        title: t('Remove scheduled workout?'), confirmText: t('Remove'), danger: true, onConfirm: () => save(null),
+      })}>{t('Remove')}</Button>}
+    </div>}
+  </>
+}
+const scheduledWorkoutSheet = iso => ui().openSheet(close => <ScheduledWorkout iso={iso} close={close} />)
 
 // Why a day went without training (#261): one quick pick, a line of text, or both. Saving an
 // empty note takes it away (a stamped clear, lib/day-notes.js withDayNote), and so does Remove.
@@ -3508,6 +3752,10 @@ export const dayNoteSheet = iso => ui().openSheet(close => <DayNote iso={iso} cl
 function DayAssign({ day, close }) {
   const st = useStore(s => s.S)
   const cur = [].concat(st.week[day] || [])
+  const sports = sportsOnWeekday(st, day)
+  const toggleSport = sport => update(s => {
+    s.sportPlan = withPlannedSport(s.sportPlan, day, sport, !sportsOnWeekday(s, day).includes(sport))
+  })
   const toggle = id => update(s => {
     const ids = [].concat(s.week[day] || [])
     const next = ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
@@ -3516,9 +3764,9 @@ function DayAssign({ day, close }) {
   const rest = () => { update(s => { delete s.week[day] }); close() }
   return <>
     <h3 style={{ marginBottom: 2 }}>{t(DAYN[day])}</h3>
-    <div className="muted small" style={{ marginBottom: 10 }}>{t('Pick one routine, or more to train them together.')}</div>
+    <h4 className="sec">{t('Strength training')}</h4>
     <div className="list menu-list">
-      <div className="item menu-item" {...tappable(rest)}><span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name="moon" /></span><div className="grow"><div className="tt">{t('Rest day')}</div></div><span className={'menu-on' + (!cur.length ? ' is-on' : '')}><Icon name="check" /></span></div>
+      <div className="item menu-item" aria-pressed={!cur.length} {...tappable(rest)}><span className="lrow-i" style={{ background: 'var(--surface-3)' }}><Icon name="moon" /></span><div className="grow"><div className="tt">{t('No strength training')}</div></div><span className={'menu-on' + (!cur.length ? ' is-on' : '')}><Icon name="check" /></span></div>
       {st.routines.map(r => {
         const on = cur.includes(r.id)
         return <div key={r.id} className="item menu-item" aria-pressed={on} {...tappable(() => toggle(r.id))}>
@@ -3539,6 +3787,14 @@ function DayAssign({ day, close }) {
         {st.weekApart?.[day] === true ? t('Each one is its own workout, with its own Start on Home.') : t('One workout, one after the other.')}
       </div>
     </div>}
+    <h4 className="sec" id="day-assign-sports">{t('Sport')}</h4>
+    <div className="chips rec-kinds" role="group" aria-labelledby="day-assign-sports" style={{ flexWrap: 'wrap' }}>
+      {SPORTS.map(sport => {
+        const on = sports.includes(sport)
+        return <button key={sport} type="button" className={'chip nocap ichip' + (on ? ' on' : '')}
+          aria-pressed={on} onClick={() => toggleSport(sport)}><Icon name={SPORT_ICON[sport]} />{t(SPORT_LABEL[sport])}</button>
+      })}
+    </div>
     <div style={{ height: 12 }} />
     <Button variant="primary" onClick={close}>{t('Done')}</Button>
   </>
@@ -3624,6 +3880,14 @@ function WorkoutDetail({ w, close }) {
   const onNoteFocus = useSheetKeyboard(noteRef)
   const st = useStore(s => s.S)
   const update = useStore(s => s.update)
+  const record = st.workouts.find(x => sameWorkout(x, w))
+  const changeLocation = location => update(s => {
+    const rec = s.workouts.find(x => sameWorkout(x, w))
+    if (!rec || location === workoutLocationOf(rec)) return
+    rec.id ??= legacySyncKey(rec)
+    rec.workoutLocation = location
+    stampWorkout(rec, Math.max(Date.now(), (Number(rec._ts) || 0) + 1))
+  })
   // The session note is editable here rather than only at the finish sheet: what you want to
   // record about a session is often clearer once you have looked at what you actually did.
   const [note, setNote] = useState(w.note || '')
@@ -3798,7 +4062,8 @@ function WorkoutDetail({ w, close }) {
   const grouped = groups.length > 1 || (groups[0] && groups[0].rid && (w.routineIds || []).length > 1)
   return <>
     <h3>{w.name}</h3>
-    <div className="muted small" style={{ marginBottom: 12 }}>{[fmtDate(w.d, true), ...durPart(w.end - w.start), fmtVol(sessionVolume(w, st), st.unit), ...(w.bw ? [fmtWeight(w.bw, st.unit)] : [])].join(' · ')}</div>
+    <div className="muted small" style={{ marginBottom: 12 }}>{[fmtDate(workoutDay(w) || w.d, true), ...workoutTimeParts(w, { range: true }), fmtVol(sessionVolume(w, st), st.unit), ...(w.bw ? [fmtWeight(w.bw, st.unit)] : [])].join(' · ')}</div>
+    {record && <WorkoutLocationField value={workoutLocationOf(record)} onChange={changeLocation} />}
     {/* Ended by itself (lib/forgotten-workout.js): said so, with Reopen for 24 hours. */}
     <AutoEndedNote w={w} close={close} />
     {/* Circuits, AMRAPs, EMOMs and intervals: the score and the round times (lib/circuit.js). */}
@@ -3894,11 +4159,7 @@ function Calendar({ start, close, help = false }) {
   // weekly run in America/Los_Angeles, .github/workflows/audit.yml).
   const [cur, setCur] = useState(() => { const d = start ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(start) ? start + 'T12:00:00' : start) : new Date(); d.setDate(1); return d })
   const y = cur.getFullYear(), mo = cur.getMonth()
-  const byDay = {}
-  st.workouts.forEach(w => {
-    const day = workoutDay(w)
-    if (day) (byDay[day] = byDay[day] || []).push(w)
-  })
+  const locationsByDay = useMemo(() => workoutLocationsByDay(st.workouts), [st.workouts])
   // Which column the 1st sits in, and therefore how many blanks come before it.
   const ws = weekStartOf(st)
   const startOffset = weekDayOffset(new Date(y, mo, 1).getDay(), ws)
@@ -3907,34 +4168,49 @@ function Calendar({ start, close, help = false }) {
   const monthVol = monthWs.reduce((a, w) => a + sessionVolume(w, st), 0)
   const monthMs = monthWs.reduce((a, w) => a + Math.max(0, (w.end || w.start) - w.start), 0)
   const cells = []
+  let showPlannedSport = false
+  let showPlannedRecovery = false
+  let showUnspecified = false
   for (let i = 0; i < startOffset; i++) cells.push(<div key={'e' + i} />)
   for (let d = 1; d <= daysIn; d++) {
     const iso = y + '-' + String(mo + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0')
     // A fulfilled pin (a coach session pinned here and since done) reads as no override, as it does everywhere else.
-    const ws = byDay[iso], planned = effectiveRoutineIds(st, iso).length > 0, ovr = st.dayPlan[iso] !== undefined && pinState(st, st.dayPlan[iso]) !== 'done'
+    const locations = locationsByDay.get(iso) || []
+    const trained = locations.length > 0
+    const planned = effectiveRoutineIds(st, iso).length > 0 || !!scheduledWorkoutOf(st, iso)
+    const ovr = st.dayPlan[iso] !== undefined && pinState(st, st.dayPlan[iso]) !== 'done'
     // A day off with a note on it (#261) shows the note's dot instead of the plan's, and its
     // note as the tooltip; tapping it opens the day sheet, where the note is.
-    const note = !ws && dayNoteOf(st, iso)
+    const note = !trained && dayNoteOf(st, iso)
     // A planned day gone by without a workout is missed, not still planned (Discord 11-04: it
     // looked like a day still to come). Only the week counts for the streak; the day says so.
-    const missed = !ws && !note && planned && iso < today
+    const missed = !trained && !note && planned && iso < today
     // A trained day that was moved keeps a hint of the orange (index.css .cal-d i.moved).
-    const moved = !!ws && ovr && st.dayPlan[iso] !== 'rest'
-    const rec = !ws && recDays.has(iso)
-    const act = !ws && actDays.has(iso)
-    const dotCls = ws ? (moved ? 'done moved' : 'done') : note ? 'noted' : act ? 'sport' : rec ? 'recov' : missed ? 'miss' : ovr && planned ? 'ovr' : planned ? 'plan' : ''
+    const moved = trained && ovr && st.dayPlan[iso] !== 'rest'
+    const rec = recDays.has(iso) ? 'done' : datedActivitiesOn(st, iso, 'recovery').length ? 'planned' : ''
+    const act = actDays.has(iso) ? 'done' : plannedSportsOn(st, iso).length ? 'planned' : ''
+    showPlannedSport ||= act === 'planned'
+    showPlannedRecovery ||= rec === 'planned'
+    showUnspecified ||= locations.includes('unspecified')
+    const dotCls = trained ? '' : note ? 'noted' : missed ? 'miss' : ovr && planned ? 'ovr' : planned ? 'plan' : ''
+    const label = [fmtDate(iso, true), ...locations.map(location => t(WORKOUT_LOCATION_LABELS[location])), act && t(act === 'done' ? 'Sport logged' : 'Planned sport'),
+      rec && t(rec === 'done' ? 'Recovery logged' : 'Planned recovery'), missed && t('Missed plan')].filter(Boolean).join(', ')
     const wkOf = weeks ? weekKey(iso, weekStartOf(st)) : null
     const frozenDay = !!wkOf && weeks.log.get(wkOf)?.s === 'frozen'
     const excusedDay = !!wkOf && weeks.log.get(wkOf)?.s === 'excused'
-    cells.push(<button key={d} className={'cal-d' + (ws ? ' has' : '') + (note ? ' noted' : '') + (missed ? ' missed' : '') + (selDay === iso ? ' sel-day' : '') + (frozenDay ? ' wk-frozen' : '') + (excusedDay ? ' wk-excused' : '') + (iso === today ? ' today' : '')}
+    cells.push(<button key={d} className={'cal-d' + (trained ? ' has' : '') + (note ? ' noted' : '') + (missed ? ' missed' : '') + (selDay === iso ? ' sel-day' : '') + (frozenDay ? ' wk-frozen' : '') + (excusedDay ? ' wk-excused' : '') + (iso === today ? ' today' : '')}
       title={note ? dayNoteLine(note, t) : undefined} aria-pressed={missed && weeks ? selDay === iso : undefined}
-      aria-label={missed ? fmtDate(iso, true) + ': ' + t('Missed plan') : undefined} onClick={() => {
+      aria-label={label} onClick={() => {
       // With the streak shown, a missed planned day first says what it meant; its line has the way in.
       if (missed && weeks) { setSelWkRaw(null); setSelDay(selDay === iso ? null : iso); return }
-      if (!ws) { close(); dayOverrideSheet(iso); return }
-      if (ws.length === 1) { close(); workoutDetailSheet(ws[0]); return }
-      close(); ui().openSheet(c2 => <><h3>{fmtDate(iso, true)}</h3><div className="list">{ws.map(w => <WorkoutRow key={w.id} w={w} onClick={() => { c2(); workoutDetailSheet(w) }} />)}</div></>)
-    }}><span>{d}</span><i className={dotCls} /></button>)
+      close()
+      dayOverrideSheet(iso)
+    }}><span>{d}</span><span className="wday-marks" aria-hidden="true">
+      {locations.map((location, i) => <i key={location} className={'done workout-mark ' + location + (moved && i === 0 ? ' moved' : '')} />)}
+      {(dotCls || (!trained && !act && !rec)) && <i className={dotCls} />}
+      {act && <span className={'sport-mark ' + act} />}
+      {rec && <span className={'recovery-mark ' + rec} />}
+    </span></button>)
     // The week's mark closes its row (the last row too, short as it may be: it sits in column 8).
     if (weeks && ((startOffset + d) % 7 === 0 || d === daysIn)) {
       cells.push(<WeekMark key={'w' + wkOf} wk={wkOf} entry={weeks.log.get(wkOf)} selected={selWk === wkOf} onSelect={setSelWk} />)
@@ -3950,7 +4226,7 @@ function Calendar({ start, close, help = false }) {
     <div className="small muted" style={{ textAlign: 'center' }}>{monthWs.length ? `${tn('{0} workout', '{0} workouts', monthWs.length)} · ${fmtDur(monthMs)} · ${fmtVol(monthVol, st.unit)}` : t('No workouts this month')}</div>
     <div className={'cal-grid' + (weeks ? ' with-wk' : '')}>{weekOrder(ws).map(d => <div key={d} className="cal-h">{t(DAYS[d])}</div>)}{weeks && <div className="cal-h" aria-hidden="true" />}{cells}</div>
     <div className="cal-legend">
-      <span><i style={{ background: 'var(--acc)' }} />{t('Trained')}</span>
+      <WorkoutLocationLegend showUnspecified={showUnspecified} />
       <span><i style={{ background: 'var(--label-3)' }} />{t('Planned')}</span>
       <span><i style={{ background: 'var(--orange)' }} />{t('Rescheduled')}</span>
       <span><i className="miss" />{t('Missed plan')}</span>
@@ -3960,11 +4236,14 @@ function Calendar({ start, close, help = false }) {
         <span><i style={{ background: 'var(--teal)' }} />{t('Recovery')}</span>}
       {[...actDays].some(k => k.startsWith(y + '-' + String(mo + 1).padStart(2, '0'))) &&
         <span><i style={{ background: 'var(--blue)' }} />{t('Sport')}</span>}
+      {showPlannedSport && <span><span className="sport-mark planned" />{t('Planned sport')}</span>}
+      {showPlannedRecovery && <span><span className="recovery-mark planned" />{t('Planned recovery')}</span>}
     </div>
     {weeks && <><StreakLegend /><WeekNote wk={selWk} day={selDay}
       entry={selDay ? weeks.log.get(weekKey(selDay, weekStartOf(st))) : selWk ? weeks.log.get(selWk) : null}
-      onOpenDay={iso => { close(); dayOverrideSheet(iso) }} /></>}
-    <div className="small dim" style={{ textAlign: 'center', marginTop: 10 }}>{t('Tap a trained day for details · tap any other day to plan a session')}</div>
+      onOpenDay={iso => { close(); dayOverrideSheet(iso) }}
+      onLogFreestyle={iso => { close(); logPastWorkoutSheet({ iso }) }} /></>}
+    <div className="small dim" style={{ textAlign: 'center', marginTop: 10 }}>{t('Tap a day to see its workouts or log a session.')}</div>
   </>
 }
 // `help` opens the streak's how-to even after "Got it" (Stats → the streak card's link).
@@ -3978,7 +4257,7 @@ export function WorkoutRow({ w, onClick, tour }) {
   return <div className="item" data-tour={tour} {...tappable(onClick)}>
     <span className="lrow-i" style={{ width: 34, height: 34, borderRadius: 8, fontSize: 19 }}><Icon name={glyph} /></span>
     <div className="grow"><div className="tt">{w.name}</div>
-      <div className="ss">{[fmtDate(w.d, true), ...durPart(w.end - w.start), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(sessionVolume(w, st), st.unit)].join(' · ')}</div></div>
+      <div className="ss">{[fmtDate(workoutDay(w) || w.d, true), ...workoutTimeParts(w), tn('{0} set', '{0} sets', setsDone(w)), fmtVol(sessionVolume(w, st), st.unit)].join(' · ')}</div></div>
     {mediaN > 0 && <span className="wrow-media" title={tn('{0} photo or video', '{0} photos or videos', mediaN)} aria-label={tn('{0} photo or video', '{0} photos or videos', mediaN)}><Icon name="image" />{mediaN}</span>}
     {w.prs && w.prs.length > 0 && <span className="pr"><Icon name="trophy" />{w.prs.length} PR</span>}
     <Icon name="chevronRight" className="chev" />
@@ -3999,6 +4278,18 @@ export function DayNoteRow({ iso, note }) {
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
 // `opts.lead`: exercises a last session did not get to (lib/leftovers.js, #985), done first.
+export function startScheduledWorkout(iso, close) {
+  const st = S()
+  if (st.active) { toast(t('Finish the current workout first.')); return }
+  const plan = scheduledWorkoutOf(st, iso)
+  if (iso !== todayISO() || !plan || completedScheduledWorkout(st, plan)) return
+  close?.()
+  startFlow([], { scheduled: { iso, id: plan.id } })
+}
+
+const scheduledEntries = (st, plan) =>
+  plan.ex.map(cfg => ({ id: cfg.id, ...buildPlannedEntry(st, cfg, null, { noProg: true }) }))
+
 export function startFlow(routineIds, opts = {}) {
   // The daily-form check-in comes first (v1.4.5, lib/daily-form.js): only when switched on
   // (Settings → Workout), never with the Health module off, once a day.
@@ -4006,14 +4297,21 @@ export function startFlow(routineIds, opts = {}) {
   // The weigh-in is a setting (Settings → During a workout, issue #137): off goes straight
   // into the session with no body weight on it, same as "Start without weighing in".
   // Off in Settings → Workout, or with the Body module (Settings → Modules): straight into the session.
-  if (S().weighIn === false || !isOn(S(), 'body')) { beginWorkout(routineIds, null, opts); return }
-  bwSheet({ required: true, onDone: bw => beginWorkout(routineIds, bw, opts) })
+  const st = S()
+  if (st.weighIn === false || !isOn(st, 'body')) { beginWorkout(routineIds, null, opts); return }
+  const plan = opts.scheduled && scheduledWorkoutOf(st, opts.scheduled.iso)
+  bwSheet({
+    required: true,
+    plannedLocation: opts.location ?? plannedWorkoutLocation(st, routineIds, plan),
+    onDone: (bw, location) => beginWorkout(routineIds, bw, { ...opts, location: location ?? opts.location }),
+  })
 }
 function dailyCheckinSheet(routineIds, opts) {
   const st = S()
   const today = todayISO()
   // Which ways of going lighter this session can take, worked out on the entries it will start with.
-  const preview = { entries: buildCombinedEntries(st, routineIds).entries }
+  const plan = opts.scheduled && scheduledWorkoutOf(st, today)
+  const preview = { entries: plan ? scheduledEntries(st, plan) : buildCombinedEntries(st, routineIds).entries }
   const lighter = LIGHTER_KINDS.filter(k => canGoLighter(preview, k))
   // Last night's sleep from the phone's health store, when its vitals are read (lib/vitals.js).
   const sleep = MOBILE ? Promise.all([loadHealth(), nativePlatform()])
@@ -4029,9 +4327,15 @@ function dailyCheckinSheet(routineIds, opts) {
 }
 // `opts` from the Apple Watch (lib/watch-sync.js): a session started there keeps the watch's id,
 // so the sets ticked on it find it, and its start time, however late the phone hears of it.
-export function beginWorkout(routineIds, bw, { id = null, start = null, lead = null, lighter = null } = {}) {
+export function beginWorkout(routineIds, bw, { id = null, start = null, lead = null, lighter = null, scheduled = null, location = null } = {}) {
   const st = S()
-  const built = buildCombinedEntries(st, routineIds)
+  const plan = scheduled && scheduledWorkoutOf(st, scheduled.iso)
+  if (scheduled && (scheduled.iso !== todayISO() || !plan || plan.id !== scheduled.id || completedScheduledWorkout(st, plan))) {
+    toast(t('The scheduled workout is no longer available.'))
+    return
+  }
+  if (scheduled && st.active) { toast(t('Finish the current workout first.')); return }
+  const built = plan ? { routineIds: [], routines: [], entries: scheduledEntries(st, plan) } : buildCombinedEntries(st, routineIds)
   const { routineIds: rids, routines } = built
   // The leftovers keep their own routine's `rid`, so the history reads them back per routine;
   // the session stays today's (routineIds), so the plan and the queue count today only.
@@ -4044,12 +4348,15 @@ export function beginWorkout(routineIds, bw, { id = null, start = null, lead = n
       // A session tracks its routines as a list; per-entry `rid` carries which one each
       // exercise came from. No top-level `excludeFromProgression` — per-entry `noProg` does it.
       routineIds: rids,
-      name: routines.length ? deriveSessionName(routines.map(r => r.name)) : first.length ? deriveSessionName(lead.routines.map(r => r.name)) : t('Freestyle'),
+      name: plan ? plan.name : routines.length ? deriveSessionName(routines.map(r => r.name)) : first.length ? deriveSessionName(lead.routines.map(r => r.name)) : t('Freestyle'),
+      ...(plan ? { scheduledWorkoutId: plan.id } : {}),
       bw: bw || null, cur: 0, entries,
       // Snapshot the layout at start so the header ⋮ can change it for this session only —
       // changing the saved default (Settings → Workout view) mid-session leaves it alone.
       workoutView: st.workoutView || 'cards',
     }
+    const startingLocation = location ?? plannedWorkoutLocation(st, rids, plan) ?? s.lastWorkoutLocation
+    setActiveWorkoutLocation(s, startingLocation, location != null || isKnownWorkoutLocation(startingLocation))
   })
   // "Go lighter" from the check-in (lib/daily-form.js): today's numbers only, said so.
   if (lighter) {
@@ -4074,7 +4381,7 @@ export function repeatWorkout(w, close) {
   if (st.active) { toast(t('Finish the current workout first.')); return }
   const { entries, skipped } = repeatSessionEntries(st, w)
   if (!entries.length) { toast(t('Nothing to repeat. Its exercises no longer exist.')); return }
-  const go = bw => {
+  const go = (bw, location) => {
     if (S().active) { toast(t('Finish the current workout first.')); return }
     update(s => {
       s.active = {
@@ -4082,6 +4389,7 @@ export function repeatWorkout(w, close) {
         name: w.name || t('Freestyle'), bw: bw || null, cur: 0, entries,
         workoutView: s.workoutView || 'cards',
       }
+      setActiveWorkoutLocation(s, location ?? s.lastWorkoutLocation)
     })
     useUI.getState().stopRest()
     if (close) closeThenNav(close, '/workout'); else navToWorkout()
@@ -4099,7 +4407,7 @@ export function repeatWorkout(w, close) {
 export function startBuiltSession(cfgs, name, close) {
   const st = S()
   if (st.active) { toast(t('Finish the current workout first.')); return }
-  const go = bw => {
+  const go = (bw, location) => {
     if (S().active) { toast(t('Finish the current workout first.')); return }
     const now = S()
     const entries = cfgs.map(c => ({ id: c.id, ...buildSessionEntry(now, c.id, c, null) }))
@@ -4109,6 +4417,7 @@ export function startBuiltSession(cfgs, name, close) {
         name: name || t('Freestyle'), bw: bw || null, cur: 0, entries,
         workoutView: s.workoutView || 'cards',
       }
+      setActiveWorkoutLocation(s, location ?? s.lastWorkoutLocation)
     })
     useUI.getState().stopRest()
     if (close) closeThenNav(close, '/workout'); else navToWorkout()
@@ -4133,18 +4442,21 @@ function LogPastWorkout({ initial, close }) {
   const [date, setDate] = useState(initial?.iso || isoOf(yesterday))
   const [time, setTime] = useState('18:00')
   const [dur, setDur] = useState(60)
-  const [routineId, setRoutineId] = useState(planned.length > 1 ? PLANNED_DAY : planned[0]?.id || '')
+  const [location, setLocation] = useState(null)
+  const [useRoutine, setUseRoutine] = useState(planned.length > 0)
+  const [routineId, setRoutineId] = useState(planned.length > 1 ? PLANNED_DAY : planned[0]?.id || st.routines[0]?.id)
   const today = todayISO()
   const options = [
-    { value: '', label: t('Freestyle') },
     ...(planned.length > 1 ? [{ value: PLANNED_DAY, label: deriveSessionName(planned.map(r => r.name)) }] : []),
     ...st.routines.map(r => ({ value: r.id, label: r.name })),
   ]
 
-  const go = replaceId => {
+  const go = replaced => {
     close()
-    const routineIds = routineId === PLANNED_DAY ? planned.map(r => r.id) : routineId ? [routineId] : []
-    beginBackfill({ iso: date, time, durationMin: Math.max(1, dur), routineIds, replaceId })
+    const routineIds = useRoutine && routineId
+      ? routineId === PLANNED_DAY ? planned.map(r => r.id) : [routineId]
+      : []
+    beginBackfill({ iso: date, time, durationMin: Math.max(1, dur), routineIds, replaced, location })
   }
   const submit = () => {
     if (!date || date > today) { toast(t('Pick a day up to today')); return }
@@ -4154,7 +4466,7 @@ function LogPastWorkout({ initial, close }) {
     const existing = workoutsOn(st, date)
     if (!existing.length) { go(null); return }
     ui().openSheet(c => <SameDayChoice iso={date} existing={existing} close={c}
-      onReplace={id => { c(); go(id) }} onAdd={() => { c(); go(null) }} />, { kind: 'center' })
+      onReplace={workout => { c(); go(workout) }} onAdd={() => { c(); go(null) }} />, { kind: 'center' })
   }
 
   return <>
@@ -4167,8 +4479,17 @@ function LogPastWorkout({ initial, close }) {
     <Stepper label={t('Duration')} unit={t('min')} value={dur} step={5} min={0} decimal={false} invalid={!(dur >= 1) || dur > MAX_DURATION_MIN} onChange={v => setDur(Math.round(v))} />
     {!(dur >= 1) && <div className="small" style={{ color: 'var(--red)', marginTop: 6 }}>{t('Enter how long it took (at least 1 minute).')}</div>}
     {dur > MAX_DURATION_MIN && <div className="small" style={{ color: 'var(--red)', marginTop: 6 }}>{t('That’s more than a day. Keep it to 24 hours or less.')}</div>}
+    <WorkoutLocationField value={location ?? normalizeWorkoutLocation(st.lastWorkoutLocation)} onChange={setLocation} />
     <div style={{ height: 8 }} />
-    <SelectRow icon="dumbbell" title={t('Routine')} value={routineId} options={options} onChange={setRoutineId} />
+    {options.length > 0 ? <Segmented value={useRoutine ? 'routine' : 'freestyle'} of={t('Workout type')}
+      onChange={value => setUseRoutine(value === 'routine')}
+      options={[
+        { value: 'freestyle', label: t('Freestyle'), icon: 'shuffle' },
+        { value: 'routine', label: t('Routine'), icon: 'dumbbell' },
+      ]} /> : <div className="small">{t('Freestyle')}</div>}
+    {useRoutine
+      ? <SelectRow icon="dumbbell" title={t('Routine')} value={routineId} options={options} onChange={setRoutineId} />
+      : <div className="small muted" style={{ marginTop: 8 }}>{t('Choose any exercises when you continue.')}</div>}
     <div style={{ height: 18 }} />
     <Button variant="primary" onClick={submit}>{t('Continue')}</Button>
   </>
@@ -4184,7 +4505,7 @@ function SameDayChoice({ iso, existing, onReplace, onAdd, close }) {
       // Replacing re-logs the sets; the photos and videos move to the new record (completeBackfill).
       const n = workoutMediaOf(w, Infinity).length
       return <div key={w.id} style={{ marginBottom: 8 }}>
-        <button className="btn danger" onClick={() => onReplace(w.id)}>{existing.length > 1 ? t('Replace') + ' · ' + w.name : t('Replace')}</button>
+        <button className="btn danger" onClick={() => onReplace(w)}>{existing.length > 1 ? t('Replace') + ' · ' + w.name : t('Replace')}</button>
         {n > 0 && <div className="small dim samed-media" style={{ marginTop: 4 }}>{tn('Its photo or video moves to the new workout.', 'Its {0} photos or videos move to the new workout.', n)}</div>}
       </div>
     })}
@@ -4193,7 +4514,7 @@ function SameDayChoice({ iso, existing, onReplace, onAdd, close }) {
     <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
   </div>
 }
-// History's button hands this its click event; only a day from the plan counts as `initial`.
+// History's button can pass a click event. Only an explicit date prefills the form.
 export function logPastWorkoutSheet(initial) {
   if (S().active) { toast(t('Finish the current workout first.')); return }
   const from = typeof initial?.iso === 'string' ? initial : null
@@ -4204,9 +4525,10 @@ export function logPastWorkoutSheet(initial) {
 // top-level routineId. One routine from the picker, or every routine of a missed combined day.
 // Only from the history before that day (historyAsOf): a session logged later must not hand its
 // progression back to the day it skipped.
-function beginBackfill({ iso, time, durationMin, routineIds, replaceId }) {
+function beginBackfill({ iso, time, durationMin, routineIds, replaced, location }) {
   const st = S()
   const start = backfillStart(iso, time)
+  const replaceId = replaced?.id
   const past = historyAsOf(st, { d: iso, start, replaceId })
   const { entries, routineIds: rids, routines } = buildCombinedEntries(past, routineIds || [])
   update(s => {
@@ -4219,6 +4541,7 @@ function beginBackfill({ iso, time, durationMin, routineIds, replaceId }) {
       // Same layout snapshot as a live session (see beginWorkout).
       workoutView: st.workoutView || 'cards',
     }
+    setActiveWorkoutLocation(s, location ?? (replaced ? workoutLocationOf(replaced) : s.lastWorkoutLocation), location != null)
   })
   useUI.getState().stopRest()
   navToWorkout()
@@ -4516,19 +4839,6 @@ export const supersetSheet = (meta, onSave, opts = {}) => ui().openSheet(close =
    already computed via applyIntensifierPlan; an unplanned straight set can still grow one live
    by tapping "+ Drop"/"+ Burst", which appends with the same suggested-next-value math. */
 
-// Shown when the last exercise's last set is checked — finish, or keep going.
-function WorkoutComplete({ close }) {
-  return <div style={{ textAlign: 'center', padding: '8px 0' }}>
-    <div style={{ fontSize: '2.75rem', display: 'flex', justifyContent: 'center', color: 'var(--acc-ink)' }}><Icon name="checkCircle" /></div>
-    <h3 style={{ margin: '8px 0' }}>{t("That's the whole workout!")}</h3>
-    <div className="muted small" style={{ marginBottom: 16 }}>{t('All exercises done. Nice work! Finish up, or add another one if you’ve got more in you.')}</div>
-    <Button variant="primary" icon="flag" onClick={() => { close(); finishWorkout() }}>{t('Finish workout')}</Button>
-    <div style={{ height: 8 }} />
-    <Button onClick={() => { close(); useUI.getState().toast(t('Keep going: tap “+ Add exercise” below')) }}>{t('Continue workout')}</Button>
-  </div>
-}
-export const workoutCompleteSheet = () => ui().openSheet(close => <WorkoutComplete close={close} />, { kind: 'center' })
-
 export function saveWorkoutEdits(onExit = () => nav('/history')) {
   // A save decision left open after the editor already closed (a second prompt from a route
   // exit that raced the first save) has nothing to save or delete: it only finishes leaving.
@@ -4734,7 +5044,7 @@ export function finishWorkout() {
   if (done < total) { confirmSheet({ title: t('Finish early?'), message: tn('{0} set still unchecked. Finish the workout now?', '{0} sets still unchecked. Finish the workout now?', total - done), confirmText: t('Finish workout'), onConfirm: doFinishWorkout }); return }
   doFinishWorkout()
 }
-// The workout screen's Finish pill (v1.3.11): one sheet with both ways out, Finish and save or
+// The workout screen's Finish pill uses this sheet while sets remain: Finish and save or
 // Discard. It says what finishWorkout's confirm would have said about sets still unchecked, so
 // the save needs no second question. `onDiscard` is the screen's own discard, with its confirm.
 // The editor of a saved workout still saves at once.

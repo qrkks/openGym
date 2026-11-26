@@ -53,14 +53,14 @@ describe('the weekday picker', () => {
     renderTop()
     tap(row('Push'))
     expect(week()).not.toHaveProperty('1')
-    expect(row('Rest day').querySelector('.menu-on').className).toContain('is-on')
+    expect(row('No strength training').querySelector('.menu-on').className).toContain('is-on')
   })
 
   it('Rest day clears a combined day and closes', () => {
     useStore.getState().update(s => { s.week[1] = ['push', 'core'] })
     dayAssignSheet(1)
     renderTop()
-    tap(row('Rest day'))
+    tap(row('No strength training'))
     expect(week()).not.toHaveProperty('1')
     expect(useUI.getState().sheets.length).toBe(0)
   })

@@ -665,6 +665,18 @@ describe('a reset names what it wiped', () => {
 
 // QA, v1.3.9: a weigh-in logged on the phone on a day the profile already had one was dropped on
 // pairing without the question being asked.
+describe('sport plans on two devices', () => {
+  it('merges each planned sport and its removal independently', () => {
+    const state = { _ts: 10, sportPlan: { '2:fight': { on: true, _ts: 10 } }, week: { 2: 'push' } }
+    const phone = { ...state, _ts: 20, sportPlan: { ...state.sportPlan, '5:fight': { on: true, _ts: 20 } } }
+    const laptop = { ...state, _ts: 30, sportPlan: { '2:fight': { _ts: 30 }, '2:ride': { on: true, _ts: 30 } } }
+    expect(mergeStates(phone, laptop)).toMatchObject({ week: { 2: 'push' }, sportPlan: {
+      '2:fight': { _ts: 30 }, '2:ride': { on: true, _ts: 30 }, '5:fight': { on: true, _ts: 20 },
+    } })
+    expect(localExtras(phone, laptop)).toMatchObject({ setup: 2 })
+  })
+})
+
 describe('localExtras and the weigh-ins of a day both copies have', () => {
   const server = { unit: 'kg', workouts: [], bodyweight: [{ d: '2026-09-27', w: 80, t: 100 }] }
   it('counts a same-day weigh-in that differs and was entered later', () => {
@@ -969,6 +981,20 @@ describe('a reset leads the unit over a copy that switched before it', () => {
       expect(m.unitSet).toBeUndefined()
       expect(m.bodyweight).toEqual([{ d: '2026-09-27', w: convertBodyWeight(220, 'lb', 'kg'), t: 5900 }])
       expect(m.restSec).toBe(90)
+    }
+  })
+})
+
+describe('dated activity plans across devices', () => {
+  it('keeps another kind scheduled while removing a dated sport', () => {
+    const sport = '2026-11-27:sport:ride'
+    const recovery = '2026-11-27:recovery:stretch'
+    const phone = { unit: 'kg', _ts: 100, datedActivityPlan: {
+      [sport]: { on: true, _ts: 20 }, [recovery]: { on: true, _ts: 100 },
+    } }
+    const desktop = { unit: 'kg', _ts: 80, datedActivityPlan: { [sport]: { _ts: 80 } } }
+    for (const merged of [mergeStates(phone, desktop), mergeStates(desktop, phone)]) {
+      expect(merged.datedActivityPlan).toEqual({ [sport]: { _ts: 80 }, [recovery]: { on: true, _ts: 100 } })
     }
   })
 })

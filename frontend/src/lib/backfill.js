@@ -1,11 +1,11 @@
 // Logging a workout after the fact. The session itself is the ordinary active workout with a
 // `backfill` field on it; these helpers are the parts that differ from a live session, kept
 // pure so the date arithmetic and the history surgery can be tested without the UI.
-import { bestWeightForEntry } from './history.js'
+import { bestWeightForEntry, workoutDay } from './history.js'
 import { isSideSet, syncSideAggregate } from './workout-model.js'
 import { mergeWorkoutMedia, stampWorkout } from './sync-merge.js'
 
-export const workoutsOn = (S, iso) => (S.workouts || []).filter(w => w.d === iso)
+export const workoutsOn = (S, iso) => (S.workouts || []).filter(w => workoutDay(w) === iso)
 
 // Epoch of `iso` at the given wall-clock time, in the browser's zone — the same zone
 // todayISO() and isoOf() use, so `d` and `start` agree the way they do for a live session.

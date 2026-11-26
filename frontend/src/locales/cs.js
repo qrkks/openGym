@@ -1,5 +1,11 @@
 // Czech UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Statistiky sportů",
+  "All sports": "Všechny sporty",
+  "Training days": "Tréninkové dny",
+  "Monthly": "Měsíčně",
+  "No sport activities in this period": "V tomto období nejsou žádné sportovní aktivity",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Hodinky",
   "Set once": "Nastavit jednou",

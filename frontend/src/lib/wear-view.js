@@ -22,7 +22,7 @@ export function wearView (wear, channel) {
   const watches = Array.isArray(wear.watches) ? wear.watches.filter(w => w && typeof w === 'object') : []
   const base = { watches, getApp: false }
   // F-Droid's builds carry nothing from Google Play services, which is the only way to a Wear OS watch.
-  if (channel === 'fdroid' || channel === 'offline') return { ...base, watches: [], key: 'build' }
+  if (channel === 'fdroid' || channel === 'offline' || channel === 'extended') return { ...base, watches: [], key: 'build' }
   if (!wear.paired && !wear.installed) return { ...base, key: 'no-watch' }
   if (!wear.installed) return { ...base, key: channel === 'play' ? 'get-app-play' : 'get-app-apk', getApp: channel !== 'play' }
   return { ...base, key: wear.reachable ? 'on-watch' : 'on-watch-away' }

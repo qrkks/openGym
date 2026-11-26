@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-// A coach week (S.queue) runs by order, not by weekday, so Home swaps the seven dots for a
-// progress row. Covered here: one chip per session in slot order with its state word, a tap on
+// A coach week (S.queue) runs in order and the progress row sits below the calendar.
+// Covered here: one chip per session in slot order with its state word, a tap on
 // an undone chip starting that routine alone, a done chip staying inert, the status line's
 // states, the today row still answering through the same helper, and a session pinned to a day
 // (S.dayPlan[iso] = queue routine id) wearing its day on the chip and yielding the light.
@@ -8,15 +8,15 @@ import React, { act } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createRoot } from 'react-dom/client'
 import { useStore } from '../store/useStore.js'
-import { startFlow } from '../sheets.jsx'
-import { todayISO, isoOf, fmtDate } from '../lib/format.js'
+import { dayOverrideSheet, plannedActivityOptionsSheet, startFlow } from '../sheets.jsx'
+import { todayISO, isoOf, fmtClock, fmtDate, fmtDur } from '../lib/format.js'
 import Home from './Home.jsx'
 import { setLang } from '../lib/i18n.js'
 
 vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 vi.mock('../sheets.jsx', () => ({
   starterPlanSheet: vi.fn(), bwSheet: vi.fn(), goalSheet: vi.fn(), dayOverrideSheet: vi.fn(),
-  calendarSheet: vi.fn(), startFlow: vi.fn(), bwDeltaColor: () => '',
+  calendarSheet: vi.fn(), plannedActivityOptionsSheet: vi.fn(), startFlow: vi.fn(), bwDeltaColor: () => '',
 }))
 
 const routines = [
@@ -39,6 +39,8 @@ let host, root
 beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   startFlow.mockClear()
+  dayOverrideSheet.mockClear()
+  localStorage.removeItem('gym_home_calendar_view')
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
@@ -46,10 +48,12 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   host.remove()
+  vi.useRealTimers()
 })
 
 const setS = (over = {}) => useStore.setState(s => ({
-  S: { ...s.S, routines, week: {}, dayPlan: {}, workouts: [], active: null, queue: queue(), rotation: null, scheduleMode: null, ...over }, user: null,
+  S: { ...s.S, routines, week: {}, dayPlan: {}, workouts: [], activities: {}, recoverySessions: {},
+    datedActivityPlan: {}, sportPlan: {}, active: null, queue: queue(), rotation: null, scheduleMode: null, ...over }, user: null,
 }))
 const mount = () => act(() => root.render(<Home />))
 const chips = () => [...host.querySelectorAll('.queue .chip')]
@@ -59,16 +63,109 @@ const todayTitle = () => host.querySelector('.today-row .ttl')?.textContent
 const card = () => [...host.querySelectorAll('.card .card-head-sub')].map(e => e.textContent).find(x => x.includes('this week'))
 
 describe('Home — coach week progress row', () => {
-  it('replaces the weekday dots with one chip per session, in slot order, and lights the first', () => {
+  it('keeps the calendar above ordered queue chips and lights the first session', () => {
     setS()
     mount()
-    expect(host.querySelector('.week')).toBeNull()
-    expect(host.querySelectorAll('.wday').length).toBe(0)
+    expect(host.querySelectorAll('.week .wday')).toHaveLength(7)
     expect(host.querySelector('.queue .row .small').textContent).toBe('US W1')
     expect(chipTexts()).toEqual(['US W1 D1Up next', 'US W1 D2Later', 'US W1 D3Later'])
     expect(chips()[0].className).toBe('chip on')
     expect(status()).toBe('Next: US W1 D1, today')
     expect(todayTitle()).toBe('US W1 D1')
+  })
+
+  it('switches the day list before opening its menu and remembers the calendar view', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 10, 25, 12))
+    const since = new Date(2026, 10, 24, 8).getTime()
+    setS({
+      weekStart: 0,
+      rotation: { id: 'rot', sequence: ['d1', 'd2', 'd3'] },
+      queue: queue({ since, startsOn: '2026-11-24', rotationId: 'rot' }),
+      dayPlan: { '2026-11-27': 'd1' },
+      workouts: [{ ...logged('own'), d: '2026-11-23', start: since - 86400000, end: since - 82800000 }],
+      activities: { ride: { d: '2026-11-23', sport: 'ride', min: 30, at: since - 86400000 } },
+      recoverySessions: { stretch: { d: '2026-11-23', kind: 'stretch', min: 20 } },
+      datedActivityPlan: {
+        '2026-11-27:sport:ride': { on: true },
+        '2026-11-27:recovery:stretch': { on: true },
+        '2026-11-25:recovery:sauna': { on: true },
+      },
+    })
+    mount()
+    const press = text => {
+      const control = host.querySelector(`button[aria-label="${text}"]`)
+        || [...host.querySelectorAll('button')].find(b => b.textContent === text)
+      act(() => control.click())
+    }
+    press('Month view')
+    expect(host.querySelector('.home-calendar-label').textContent).toBe('November 2026')
+    expect(host.querySelectorAll('.home-month .wday')).toHaveLength(30)
+    expect(host.querySelector('.home-month .cal-h').textContent).toBe('Su')
+    expect(host.querySelector('[data-date="2026-11-23"] .dot.done')).toBeTruthy()
+    expect(host.querySelector('[data-date="2026-11-23"] .sport-mark.done')).toBeTruthy()
+    expect(host.querySelector('[data-date="2026-11-23"] .recovery-mark.done')).toBeTruthy()
+    expect(host.querySelector('[data-date="2026-11-27"] .sport-mark.planned')).toBeTruthy()
+    expect(host.querySelector('[data-date="2026-11-27"] .recovery-mark.planned')).toBeTruthy()
+    expect(host.querySelector('.home-recovery-rows').textContent).toContain('SaunaPlanned recovery')
+    expect(host.querySelector('[data-date="2026-11-27"] .dot.ovr')).toBeTruthy()
+    expect(host.querySelector('[data-date="2026-11-26"] .dot.plan')).toBeNull()
+    expect(chips()).toHaveLength(3)
+    const list = host.querySelector('#home-day-list')
+    act(() => host.querySelector('[data-date="2026-11-23"]').click())
+    expect(dayOverrideSheet).not.toHaveBeenCalled()
+    expect(host.querySelector('.home-month [aria-pressed="true"].wday').dataset.date).toBe('2026-11-23')
+    expect(list.dataset.selectedDate).toBe('2026-11-23')
+    expect(list.querySelector('.home-day-rows').textContent).toContain('Core')
+    const startTime = fmtClock(since - 86400000)
+    expect(list.querySelector('.home-day-rows .lrow-s').textContent).toContain(startTime)
+    expect(list.querySelector('.home-day-rows .lrow-s').textContent).toContain(fmtDur(3600000))
+    expect(list.querySelector('.home-sport-rows .lrow-s').textContent).toContain(startTime)
+    expect(list.querySelector('.home-sport-rows .lrow-s').textContent).toContain('30 min')
+    expect(list.querySelector('.home-recovery-rows .lrow-s').textContent).toBe('20 min')
+    expect(list.textContent).not.toContain('Sauna')
+    act(() => list.querySelector('.home-day-rows button').click())
+    expect(dayOverrideSheet).toHaveBeenCalledWith('2026-11-23')
+
+    act(() => host.querySelector('[data-date="2026-11-27"]').click())
+    expect(dayOverrideSheet).toHaveBeenCalledTimes(1)
+    expect(list.dataset.selectedDate).toBe('2026-11-27')
+    expect(list.textContent).toContain('US W1 D1')
+    expect(list.textContent).toContain('Planned sport')
+    expect(list.textContent).toContain('Planned recovery')
+    act(() => list.querySelector('.home-recovery-rows button').click())
+    expect(plannedActivityOptionsSheet).toHaveBeenCalledWith('2026-11-27', 'recovery', 'stretch')
+    act(() => list.querySelector('.home-day-heading').click())
+    expect(dayOverrideSheet).toHaveBeenLastCalledWith('2026-11-27')
+
+    press('Next month')
+    expect(host.querySelector('.home-calendar-label').textContent).toBe('December 2026')
+    expect(host.querySelectorAll('.home-month .wday')).toHaveLength(31)
+    press('Previous month')
+    expect(host.querySelector('.home-calendar-label').textContent).toBe('November 2026')
+    press('Previous month')
+    expect(host.querySelector('.home-calendar-label').textContent).toBe('October 2026')
+    press('October 2026 · Back to today')
+    expect(host.querySelector('.home-month [aria-current="date"]').getAttribute('aria-pressed')).toBe('true')
+    expect(list.dataset.selectedDate).toBe('2026-11-25')
+    expect(list.querySelector('.home-recovery-rows').textContent).toContain('Sauna')
+    act(() => root.render(null))
+    mount()
+    expect(host.querySelectorAll('.home-month .wday')).toHaveLength(30)
+    press('Week view')
+    expect(host.querySelector('.home-month')).toBeNull()
+    expect(host.querySelectorAll('.week .wday')).toHaveLength(7)
+    expect(host.querySelector('[data-date="2026-11-23"] .recovery-mark.done')).toBeTruthy()
+    expect(chips()).toHaveLength(3)
+    act(() => host.querySelector('[data-date="2026-11-23"]').click())
+    expect(host.querySelector('#home-day-list').dataset.selectedDate).toBe('2026-11-23')
+    expect(dayOverrideSheet).toHaveBeenCalledTimes(2)
+    press('Next week')
+    expect(host.querySelector('.week [aria-current="date"]')).toBeNull()
+    act(() => host.querySelector('button.home-calendar-label').click())
+    expect(host.querySelector('.home-calendar-label').textContent).toBe('This week')
+    expect(host.querySelector('.week [aria-current="date"]').getAttribute('aria-pressed')).toBe('true')
+    expect(host.querySelector('#home-day-list').dataset.selectedDate).toBe('2026-11-25')
   })
 
   it('keeps "Up next" in sentence case, as Plan says it, though .chip capitalizes names', async () => {
@@ -127,11 +224,10 @@ describe('Home — coach week progress row', () => {
     expect(host.querySelector('.today-row .ss')).toBeNull()
   })
 
-  it('Rotation chosen with nothing built yet hides the weekday strip and offers an empty state instead', () => {
+  it('keeps the calendar and offers to set up an empty rotation', () => {
     setS({ queue: null, rotation: null, scheduleMode: 'rotation', week: {} })
     mount()
-    expect(host.querySelector('.week')).toBeNull()
-    expect(host.querySelectorAll('.wday').length).toBe(0)
+    expect(host.querySelectorAll('.week .wday')).toHaveLength(7)
     expect(host.querySelector('.queue')).toBeNull()
     expect(host.textContent).toContain('No rotation yet')
     expect(todayTitle()).toBe('Rest day')

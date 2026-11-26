@@ -1,5 +1,17 @@
 // Polish UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "{0} sport sessions": {"one":"{0} aktywność sportowa","few":"{0} aktywności sportowe","many":"{0} aktywności sportowych"},
+  "{0} sport sessions this week": {"one":"{0} aktywność sportowa w tym tygodniu","few":"{0} aktywności sportowe w tym tygodniu","many":"{0} aktywności sportowych w tym tygodniu"},
+  "{0} sport sessions total": {"one":"Łącznie {0} aktywność sportowa","few":"Łącznie {0} aktywności sportowe","many":"Łącznie {0} aktywności sportowych"},
+  "Sport streak: {0} weeks": {"one":"Seria sportowa: {0} tydzień","few":"Seria sportowa: {0} tygodnie","many":"Seria sportowa: {0} tygodni"},
+  "Best: {0} weeks": {"one":"Rekord: {0} tydzień","few":"Rekord: {0} tygodnie","many":"Rekord: {0} tygodni"},
+  "{0} recovery sessions": {"one":"{0} sesja regeneracji","few":"{0} sesje regeneracji","many":"{0} sesji regeneracji"},
+  "Sport Statistics": "Statystyki sportowe",
+  "All sports": "Wszystkie sporty",
+  "Training days": "Dni treningowe",
+  "Monthly": "Miesięcznie",
+  "No sport activities in this period": "Brak aktywności sportowych w tym okresie",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Zegarki",
   "Set once": "Ustaw raz",

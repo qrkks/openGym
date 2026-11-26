@@ -1,5 +1,11 @@
 // Indonesian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "Statistik olahraga",
+  "All sports": "Semua olahraga",
+  "Training days": "Hari latihan",
+  "Monthly": "Bulanan",
+  "No sport activities in this period": "Tidak ada aktivitas olahraga pada periode ini",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Jam tangan",
   "Set once": "Atur sekali",

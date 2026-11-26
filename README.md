@@ -1,3 +1,48 @@
+# openGym Extended
+
+Plan, log, and review strength training, sports, and recovery in one app.
+openGym Extended is an independently maintained fork of
+[DuarteSantos8/openGym](https://github.com/DuarteSantos8/openGym).
+
+[openGym Extended releases](https://github.com/qrkks/openGym/releases) · [Changelog](CHANGELOG.md) · [Self-host from source](#quick-start)
+
+## What's in Extended
+
+- **One calendar for training, sports, and recovery.** Switch between week and month on Home.
+  The calendar also works with rotation-based training and shows both planned and logged sessions.
+- **One-off plans.** Pick a date for a strength workout with several exercises, a sport, or a
+  recovery session. The plan applies to that date. Sports can also be scheduled by weekday.
+- **Freestyle workout backfill.** Open a past date to log a workout with the exercises and
+  sets you did, without creating a reusable routine.
+- **Separate statistics for each kind of session.** Open the month's strength, sport, or recovery
+  records from Stats. Filter sports by activity to see trends and weekly streaks, or review
+  recovery counts, time, and days by type and date range.
+
+## Install on Android
+
+Download the signed APK from the [latest Extended release](https://github.com/qrkks/openGym/releases/latest).
+If you already use OpenGym Personal, download and install the first Extended APK over it to keep
+your records. After that upgrade, open **Settings → About & updates** to check for new Extended
+releases. The fork and upstream openGym install side by side.
+
+**安卓安装** 从 [最新发布](https://github.com/qrkks/openGym/releases/latest) 下载 APK。旧版
+OpenGym Personal 用户请手动覆盖安装一次，原有记录会保留。之后可在 **设置 → 关于与更新** 检查新版。
+
+## Try the web app locally
+
+```bash
+git clone https://github.com/qrkks/openGym.git
+cd openGym/frontend
+npm ci
+npm run dev
+```
+
+Open <http://localhost:5173> and choose **Continue without account** to try it locally.
+
+## Upstream openGym
+
+The badges below link to the original project's website, releases, app stores, and community.
+
 <div align="center">
 
 <p>
@@ -147,11 +192,10 @@ The full list of what changed release by release is in the [changelog](CHANGELOG
 You need [Docker](https://docs.docker.com/get-docker/) with Compose.
 
 ```bash
-git clone https://github.com/DuarteSantos8/openGym
+git clone https://github.com/qrkks/openGym.git
 cd openGym
 cp .env.example .env
-docker compose pull      # prebuilt images, amd64 + arm64 (skip this to build from source)
-docker compose up -d
+docker compose up -d --build --pull never
 ```
 
 Open <http://localhost:8080>, tap **Create profile**, and you're in. The exercise animations are
@@ -163,10 +207,8 @@ Traefik and nginx, and there are separate guides for
 [HTTPS on a LAN](docs/SELF_HOSTING_HTTPS.md), [a Mac with Tailscale](docs/SELF_HOSTING_MAC.md) and [Kubernetes](docs/SELF_HOSTING_KUBERNETES.md).
 
 > [!NOTE]
-> Images are published from the same tag to `ghcr.io/duartesantos8/opengym-{api,web}`
-> (what `docker-compose.yml` pulls) and `registry.gitlab.com/duartesantos8/opengym/{api,web}`. Swap
-> the `image:` lines if you prefer GitLab's registry, or run `docker compose up -d --build` to build
-> locally. Either way you don't need Node on the host.
+> Compose's prebuilt image names point to upstream openGym. Use the build command above when
+> running Extended from this checkout. The build runs inside Docker.
 
 <details>
 <summary><b>Configuration reference</b> (all through <code>.env</code>)</summary>
@@ -207,8 +249,11 @@ variable. The [self-hosting guide](docs/SELF_HOSTING.md) covers every option in 
 
 ## Phone app
 
-The same codebase builds the phone apps with Capacitor. Use them on their own (everything stays on
-the phone, no account) or connect them to your server and sync.
+See [openGym Extended releases](https://github.com/qrkks/openGym/releases) for builds of this fork.
+
+The original openGym phone apps are built with Capacitor. Use them on their own (everything stays on
+the phone, no account) or connect them to your server and sync. The distribution channels below
+are for upstream openGym.
 
 | | Get it |
 |---|---|
@@ -217,9 +262,9 @@ the phone, no account) or connect them to your server and sync.
 | **Google Play** | In closed testing: Google wants 12 testers for 14 days before it lets everyone in. Join the [tester group](https://groups.google.com/g/opengym-testers/about), then [opt in](https://play.google.com/apps/testing/ch.duartesantos.opengym). It installs right over the APK and keeps your data |
 | **Wear OS watch** (beta) | Rides along with the Google Play test: once Google's watch review is done, "openGym Beta" shows up in the Play Store on your Galaxy Watch, Pixel Watch and friends. Details: [docs/WEAR_OS.md](docs/WEAR_OS.md) |
 
-Every APK sits next to its `.sha256`. The APK and the Play app share one signing key, so you can
-switch between them (or between Standard, Plus and HD) without losing data. Details, building it
-yourself and connecting to your server: [docs/MOBILE.md](docs/MOBILE.md).
+Each upstream APK sits next to its `.sha256`. The upstream APK and Play app share one signing key,
+so you can switch between them or between Standard, Plus, and HD. The mobile guide covers building
+the app and connecting to your server. [Mobile guide](docs/MOBILE.md)
 
 ## How it works
 

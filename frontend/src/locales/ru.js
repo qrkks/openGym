@@ -1,5 +1,17 @@
 // Russian UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "{0} sport sessions": {"one":"{0} спортивная тренировка","few":"{0} спортивные тренировки","many":"{0} спортивных тренировок"},
+  "{0} sport sessions this week": {"one":"{0} спортивная тренировка на этой неделе","few":"{0} спортивные тренировки на этой неделе","many":"{0} спортивных тренировок на этой неделе"},
+  "{0} sport sessions total": {"one":"Всего {0} спортивная тренировка","few":"Всего {0} спортивные тренировки","many":"Всего {0} спортивных тренировок"},
+  "Sport streak: {0} weeks": {"one":"Спорт подряд: {0} неделя","few":"Спорт подряд: {0} недели","many":"Спорт подряд: {0} недель"},
+  "Best: {0} weeks": {"one":"Рекорд: {0} неделя","few":"Рекорд: {0} недели","many":"Рекорд: {0} недель"},
+  "{0} recovery sessions": {"one":"{0} сеанс восстановления","few":"{0} сеанса восстановления","many":"{0} сеансов восстановления"},
+  "Sport Statistics": "Спортивная статистика",
+  "All sports": "Все виды спорта",
+  "Training days": "Дни тренировок",
+  "Monthly": "По месяцам",
+  "No sport activities in this period": "В этом периоде нет спортивных занятий",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "Часы",
   "Set once": "Настраивается один раз",

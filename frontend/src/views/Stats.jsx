@@ -14,6 +14,12 @@ import { nameIn } from '../lib/a11y-name.js'
 import { lifetimeTotals, likenessOf } from '../lib/lifetime.js'
 import { LB_KG } from '../lib/units.js'
 import CardioWeekCard from '../components/CardioWeek.jsx'
+import SportStatistics from '../components/SportStatistics.jsx'
+import RecoveryStatistics from '../components/RecoveryStatistics.jsx'
+import { activityTotals } from '../lib/activities.js'
+import { recoverySessionsOf } from '../lib/recovery-sessions.js'
+import { isInSessionMonth } from '../lib/session-stats-period.js'
+import { workoutLocationOf } from '../lib/workout-location.js'
 import { bwSheet, goalSheet, calendarSheet, dayOverrideSheet, workoutDetailSheet, exerciseHistorySheet, WorkoutRow, bwDeltaColor, weighInsSheet } from '../sheets.jsx'
 import LineChart from '../components/LineChart.jsx'
 import WeightRate from '../components/WeightRate.jsx'
@@ -579,19 +585,32 @@ export function StatsIndex({ sections }) {
 export default function Stats() {
   const nav = useNavigate()
   // Exercises kept out of progression are kept out of the statistics too (lib/counted-log.js).
-  const S = countedS(useStore(s => s.S))
+  const saved = useStore(s => s.S)
+  const S = countedS(saved)
   const photoUser = useStore(s => s.user)
   const photoConfig = useStore(s => s.config)
   const [range, setRange] = useState(90)
+  const [monthDetail, setMonthDetail] = useState({})
+  useEffect(() => {
+    if (!monthDetail.panel) return
+    const frame = window.requestAnimationFrame(() => {
+      const panel = document.getElementById(monthDetail.panel)
+      panel?.focus({ preventScroll: true })
+      panel?.scrollIntoView?.({ block: 'start' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [monthDetail])
+  const openMonthDetail = panel => setMonthDetail(detail => ({ ...detail, panel, [panel]: (detail[panel] || 0) + 1 }))
   // Plan's "Weekly muscle volume" row lands here (/stats?focus=weekly-volume): the Muscles card
   // opens on Planned and scrolls into view. The router is a HashRouter, so the query sits in the
   // hash; the scroll waits a frame for the page's own scroll-to-top on navigation to happen first.
-  const [planFocus] = useState(() => /[?&]focus=weekly-volume\b/.test(typeof window === 'undefined' ? '' : window.location.hash || ''))
+  const [focus] = useState(() => /[?&]focus=(weekly-volume|sport-statistics)\b/.exec(typeof window === 'undefined' ? '' : window.location.hash || '')?.[1])
+  const planFocus = focus === 'weekly-volume'
   useEffect(() => {
-    if (!planFocus) return
-    const frame = window.requestAnimationFrame(() => document.getElementById('weekly-volume')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }))
+    if (!focus) return
+    const frame = window.requestAnimationFrame(() => document.getElementById(focus)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }))
     return () => window.cancelAnimationFrame(frame)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [focus])
   const [exId, setExId] = useState(null)
   const [exMetric, setExMetric] = useState('top')
   // What the Body weight view measures the lift by: 'e1rm' (default) or the heaviest set.
@@ -613,7 +632,24 @@ export default function Stats() {
   const bw30 = S.bodyweight.filter(b => weighInAt(b) > now - 30 * 86400000)
   const bwDelta30 = bw30.length > 1 ? bw30[bw30.length - 1].w - bw30[0].w : null
   const workouts = S.workouts
-  const monthW = workouts.filter(w => workoutDay(w)?.slice(0, 7) === todayISO().slice(0, 7)).length
+  // The month overview counts saved sessions, as History does. Progression metrics use countedS.
+  const today = todayISO()
+  const recoverySessions = useMemo(() => recoverySessionsOf({ recoverySessions: saved.recoverySessions }), [saved.recoverySessions])
+  let monthWorkouts = 0
+  const monthDaysByLocation = { gym: new Set(), home: new Set() }
+  for (const workout of saved.workouts) {
+    const day = workoutDay(workout)
+    if (!isInSessionMonth(day, today)) continue
+    monthWorkouts++
+    monthDaysByLocation[workoutLocationOf(workout)]?.add(day)
+  }
+  const monthSports = activityTotals(saved, today.slice(0, 7) + '-01', today).n
+  const monthRecovery = recoverySessions.filter(r => isInSessionMonth(r.d, today)).length
+  const monthStats = [
+    { label: 'Strength training', icon: 'dumbbell', count: monthWorkouts, open: () => nav('/history?filter=strength&period=month') },
+    { label: 'Sport', icon: 'figureRun', count: monthSports, open: () => openMonthDetail('sport-statistics') },
+    { label: 'Recovery', icon: 'sparkles', count: monthRecovery, open: () => openMonthDetail('recovery-statistics') },
+  ]
   const lifetime = lifetimeVolume(S)
   const totals = useMemo(() => lifetimeTotals(S), [S.workouts]) // eslint-disable-line react-hooks/exhaustive-deps
   const likeness = likenessOf(S.unit === 'lb' ? lifetime * LB_KG : lifetime)
@@ -922,12 +958,28 @@ export default function Stats() {
     <StatsIndex sections={sections} />
 
     <section className="stats-sect" id="stats-overview" data-stats-sect="overview" aria-label={t('Overview')}>
-    {/* The headline numbers as one divided card: three across, the lifetime total under them at
-        full width (a few hundred sessions make a long number). The week streak is not a tile any
-        more: it is the card right below, once. */}
-    <div className={'kpis' + (bodyOn ? '' : ' two')} data-tour="stats-tiles">
+    <section className="stats-month" aria-labelledby="stats-month-title">
+      <h2 id="stats-month-title">{t('This month')}</h2>
+      <div className="kpis kpis-month">
+        {monthStats.map(item => <button key={item.label} type="button" className="tile" onClick={item.open}>
+          <span className="stats-month-icons" aria-hidden="true"><Icon name={item.icon} size={20} /><Icon name="chevronRight" size={14} /></span>
+          <span className="l">{t(item.label)}</span>
+          <span className="v">{fmtNum(item.count)}</span>
+        </button>)}
+        <dl className="stats-month-locations">
+          <div>
+            <dt>{t('Gym days')}</dt>
+            <dd>{fmtNum(monthDaysByLocation.gym.size)}</dd>
+          </div>
+          <div>
+            <dt>{t('Home training days')}</dt>
+            <dd>{fmtNum(monthDaysByLocation.home.size)}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+    <div className={'kpis kpis-training' + (bodyOn ? ' two' : '')} data-tour="stats-tiles">
       <div className="tile"><div className="l">{t('Workouts')}</div><div className="v">{workouts.length}</div></div>
-      <div className="tile"><div className="l">{t('This month')}</div><div className="v">{monthW}</div></div>
       {bodyOn && <div className="tile"><div className="l">{t('Weight 30d')}</div><div className="v" style={{ color: bwDelta30 === null ? 'inherit' : bwDeltaColor(bwDelta30, (lastBW(S) || {}).w || 0) }}>{bwDelta30 === null ? '–' : (bwDelta30 > 0 ? '+' : '') + fmtNum(bwDelta30) + ' ' + S.unit}</div></div>}
       {/* Everything ever lifted (Discord): imports included, warm-ups only when the profile
           counts them (#719). */}
@@ -945,10 +997,14 @@ export default function Stats() {
     {on('health') && <DailyFormCard S={S} />}
     {/* Cardio minutes a week, with a goal if you set one (D#84). */}
     {workouts.length > 0 && <CardioWeekCard S={S} />}
+    <SportStatistics key={'sport-' + (monthDetail['sport-statistics'] || 0)} activities={S.activities} weekStart={S.weekStart}
+      initialPeriod={monthDetail['sport-statistics'] ? 'month' : 'all'} />
+    <RecoveryStatistics key={'recovery-' + (monthDetail['recovery-statistics'] || 0)} sessions={recoverySessions} weekStart={S.weekStart}
+      initialPeriod={monthDetail['recovery-statistics'] ? 'month' : 'all'} />
 
     <div className="card">
       <SeasonDeco spot="stats-heatmap" />
-      <h2>{t('Activity (last 12 months)')}</h2>
+      <h2>{t('Workout heatmap (last 12 months)')}</h2>
       <Heatmap
         S={S}
         metric={S.heatmapMetric === 'vol' ? 'vol' : 'time'}

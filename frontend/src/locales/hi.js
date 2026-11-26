@@ -1,5 +1,11 @@
 // Hindi UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "खेल के आँकड़े",
+  "All sports": "सभी खेल",
+  "Training days": "प्रशिक्षण के दिन",
+  "Monthly": "मासिक",
+  "No sport activities in this period": "इस अवधि में कोई खेल गतिविधि दर्ज नहीं है",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "घड़ियाँ",
   "Set once": "एक बार सेट करें",

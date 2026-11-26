@@ -43,7 +43,7 @@ const rank = lv => Math.max(0, TOKEN_LEVELS.indexOf(lv));
 export const KEY_CATEGORY = {
   workouts: ['workouts'], exWeights: ['workouts'], sessionTargets: ['plans'],
   customEx: ['workouts', 'plans'],
-  routines: ['plans'], week: ['plans'], dayPlan: ['plans'], queue: ['plans'], rotation: ['plans'],
+  routines: ['plans'], week: ['plans'], dayPlan: ['plans'], sportPlan: ['plans'], scheduledWorkouts: ['plans'], datedActivityPlan: ['plans'], queue: ['plans'], rotation: ['plans'],
   scheduleMode: ['plans'], programmes: ['plans'], programme: ['plans'],
   bodyweight: ['bodyweight'], targetW: ['bodyweight'], rateGoal: ['bodyweight'],
   measurements: ['measurements'], customMeasurements: ['measurements'], measurementEnabled: ['measurements'],

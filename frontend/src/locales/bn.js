@@ -1,5 +1,11 @@
 // Bengali UI strings. Keys are the English source strings (see lib/i18n.js).
 export default {
+  // Sport Statistics
+  "Sport Statistics": "খেলাধুলার পরিসংখ্যান",
+  "All sports": "সব খেলা",
+  "Training days": "প্রশিক্ষণের দিন",
+  "Monthly": "মাসিক",
+  "No sport activities in this period": "এই সময়ে কোনো খেলাধুলার রেকর্ড নেই",
   // --- Settings first screen in groups (#1105) ---
   "Watches": "ঘড়ি",
   "Set once": "একবার সেট করুন",
